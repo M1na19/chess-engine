@@ -1,0 +1,39 @@
+# Build files
+/build/
+/bin/
+/obj/
+/out/
+
+# Compiled object files
+*.o
+*.obj
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Debug files
+*.dSYM/
+*.dwo
+*.dbg
+
+# Temporary files
+*~
+*.tmp
+*.swp
+
+# VSCode
+.vscode/
+
+# MacOS
+.DS_Store
+
+# Backup files
+*.bak
+
+# Ctags
+tags
+
+# Logs
+*.log
