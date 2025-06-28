@@ -25,7 +25,7 @@
 
 # VSCode
 .vscode/
-
+.idea/
 # MacOS
 .DS_Store
 

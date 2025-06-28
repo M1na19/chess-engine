@@ -1,9 +1,10 @@
 #include "debug.h"
 #include <stdio.h>
 const char piece_symbols[2][7] = {
-    {'P', 'N', 'B', 'R', 'Q', 'K', '.'},  // WHITE
-    {'p', 'n', 'b', 'r', 'q', 'k', '.'}   // BLACK
+    {'P', 'N', 'B', 'R', 'Q', 'K', '.'}, // WHITE
+    {'p', 'n', 'b', 'r', 'q', 'k', '.'} // BLACK
 };
+
 void print_position(const ChessPosition cp) {
     for (int rank = 7; rank >= 0; rank--) {
         printf("%d ", rank + 1);
