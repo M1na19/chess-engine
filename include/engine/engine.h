@@ -16,8 +16,8 @@ typedef enum color {
 
 typedef enum castle_rights {
     CANNOT_CASTLE = 0,
-    KING_SIDE_CASTLE = 1,
-    QUEEN_SIDE_CASTLE = 2,
+    CAN_KING_SIDE_CASTLE = 1,
+    CAN_QUEEN_SIDE_CASTLE = 2,
     CAN_CASTLE_BOTH_WAYS = 3
 } CastleRights;
 

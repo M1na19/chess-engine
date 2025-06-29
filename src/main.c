@@ -1,9 +1,14 @@
 #include <string.h>
 
 #include "engine/debug.h"
+#include "engine/precompute/load.h"
 #include "stdlib.h"
 
 int main() {
+    // Load precomputed
+    load_king_bb();
+    load_knight_bb();
+
     ChessPosition cp = alloca(sizeof(struct chess_position));
     init_position(cp);
     apply_move(cp, (Move){

@@ -1,4 +1,4 @@
-#include "engine.h"
+#include "engine/engine.h"
 #include <string.h>
 
 void init_position(ChessPosition cp) {

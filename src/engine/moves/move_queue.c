@@ -1,6 +1,6 @@
 #include <stdlib.h>
 
-#include "engine.h"
+#include "engine/engine.h"
 
 void init_move_queue(MoveQueue mq) {
     mq->sent = malloc(sizeof(struct move_cel));

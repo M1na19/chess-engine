@@ -1,4 +1,4 @@
-#include "debug.h"
+#include "engine/debug.h"
 #include <stdio.h>
 const char piece_symbols[2][7] = {
     {'P', 'N', 'B', 'R', 'Q', 'K', '.'}, // WHITE

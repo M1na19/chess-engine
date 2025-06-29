@@ -3,23 +3,28 @@ CC = gcc
 CFLAGS = -Wall -g -Wextra -std=c99 -O0 -Iinclude
 
 # Source files (recursive wildcard)
-SRCS := $(wildcard src/*.c) \
-        $(wildcard src/engine/*.c)
+SRCS := $(shell find src -name '*.c')
+SRCS := $(filter-out src/engine/precompute/precompute.c, $(SRCS))
 
 # Object files
 OBJS := $(SRCS:.c=.o)
 
 # Output executable
 TARGET = build/chess
-
+TARGET_PRECOMPUTE=build/precompute
 .PHONY: all clean directories
 
 all: directories $(TARGET)
+
+precompute: directories $(TARGET_PRECOMPUTE)
 
 directories:
 	mkdir -p build
 
 $(TARGET): $(OBJS)
+	$(CC) $(CFLAGS) $^ -o $@ -lm
+
+$(TARGET_PRECOMPUTE): src/engine/precompute/precompute.c
 	$(CC) $(CFLAGS) $^ -o $@ -lm
 
 # Compile each source file into object files

@@ -1,20 +1,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "engine.h"
+#include "engine/engine.h"
+#include "engine/precompute/load.h"
 
-unsigned char is_square_attacked(ChessPosition cp, char position) {
+unsigned char is_square_attacked(ChessPosition cp, uint8_t position) {
     // TO DO
     return '0';
 }
 
 void remove_piece(ChessPosition cp, Color c, PieceType pt, uint8_t sq) {
-    cp->board[c][pt] &= ~(1UL << sq);
+    cp->board[c][pt] &= ~(1ULL << sq);
     cp->piece_board[sq].piece = NONE;
 }
 
 void add_piece(ChessPosition cp, Color c, PieceType pt, uint8_t sq) {
-    cp->board[c][pt] |= 1UL << sq;
+    cp->board[c][pt] |= 1ULL << sq;
     cp->piece_board[sq].piece = pt;
     cp->piece_board[sq].color = c;
 }
@@ -50,6 +51,20 @@ void apply_move(ChessPosition cp, Move m) {
             // Add new location
             add_piece(cp, cp->side_to_move, moved, m.capture.to);
 
+            // Update castling rights
+            if (moved == ROOK && (cp->side_to_move == WHITE && m.capture.from == 7 || cp->side_to_move == BLACK && m.
+                                  capture.from == 63) || moved == KING)
+                cp->castle_laws[cp->side_to_move] &= 0b10;
+            if (moved == ROOK && (cp->side_to_move == WHITE && m.capture.from == 0 || cp->side_to_move == BLACK && m.
+                                  capture.from == 56) || moved == KING)
+                cp->castle_laws[cp->side_to_move] &= 0b01;
+
+            //Update en_passant
+            if (moved == PAWN && abs(m.capture.to - m.capture.from) == 16) {
+                cp->en_passant_square = 1ULL << ((cp->side_to_move == WHITE ? 8 : -8) + m.capture.from);
+            } else {
+                cp->en_passant_square = 0ULL;
+            }
             break;
         }
         case PROMOTION: {
@@ -102,6 +117,7 @@ void apply_move(ChessPosition cp, Move m) {
                     break;
                 }
             }
+            cp->castle_laws[cp->side_to_move] = CANNOT_CASTLE;
             break;
         }
     }
@@ -245,6 +261,98 @@ void gen_pawn_moves(ChessPosition cp, MoveQueue mq, BitBoard all_pieces, BitBoar
     }
 }
 
+void gen_king_moves(ChessPosition cp, MoveQueue mq, BitBoard all_pieces, BitBoard ally_pieces) {
+    uint8_t king_location = __builtin_ctzll(cp->board[cp->side_to_move][KING]);
+    BitBoard tmp = king_look_up_table[king_location] & ~(ally_pieces);
+    while (tmp) {
+        uint8_t to = __builtin_ctzll(tmp);
+        tmp &= tmp - 1; // Clear lowest bit
+
+        add_move_queue(mq, (Move){
+                           .move_type = CAPTURE,
+                           .capture = (Capture){
+                               .from = king_location,
+                               .to = to,
+                           }
+                       });
+    }
+    // Check rights
+    if (cp->castle_laws[cp->side_to_move] == CAN_CASTLE_BOTH_WAYS || cp->castle_laws[cp->side_to_move] ==
+        CAN_KING_SIDE_CASTLE) {
+        if (cp->side_to_move == WHITE) {
+            //Check empty space and rook is in position
+            if ((all_pieces & 0x60) == 0 && (cp->board[WHITE][ROOK] & 0x80) != 0)
+                if (is_square_attacked(cp, 4) == 0 && is_square_attacked(cp, 5) == 0 && is_square_attacked(cp, 6) == 0)
+                    add_move_queue(mq, (Move){
+                                       .move_type = CASTLE,
+                                       .castle = CASTLE_KING
+                                   });
+        } else {
+            //Check empty space and rook is in position
+            if ((all_pieces & 0x6000000000000000) == 0 && (cp->board[BLACK][ROOK] & 0x8000000000000000) != 0)
+                if (is_square_attacked(cp, 60) == 0 && is_square_attacked(cp, 61) == 0 && is_square_attacked(cp, 62) ==
+                    0)
+                    add_move_queue(mq, (Move){
+                                       .move_type = CASTLE,
+                                       .castle = CASTLE_KING
+                                   });
+        }
+    }
+    if (cp->castle_laws[cp->side_to_move] == CAN_CASTLE_BOTH_WAYS || cp->castle_laws[cp->side_to_move] ==
+        CAN_QUEEN_SIDE_CASTLE) {
+        if (cp->side_to_move == WHITE) {
+            //Check empty space and rook is in position
+            if ((all_pieces & 0xc) == 0 && (cp->board[WHITE][ROOK] & 0x1) != 0)
+                if (is_square_attacked(cp, 2) == 0 && is_square_attacked(cp, 3) == 0 && is_square_attacked(cp, 4) == 0)
+                    add_move_queue(mq, (Move){
+                                       .move_type = CASTLE,
+                                       .castle = CASTLE_QUEEN
+                                   });
+        } else {
+            //Check empty space and rook is in position
+            if ((all_pieces & 0xc00000000000000) == 0 && (cp->board[BLACK][ROOK] & 0x100000000000000) != 0)
+                if (is_square_attacked(cp, 58) == 0 && is_square_attacked(cp, 59) == 0 && is_square_attacked(cp, 60) ==
+                    0)
+                    add_move_queue(mq, (Move){
+                                       .move_type = CASTLE,
+                                       .castle = CASTLE_QUEEN
+                                   });
+        }
+    }
+}
+
+void gen_knight_moves(ChessPosition cp, MoveQueue mq, BitBoard ally_pieces) {
+    BitBoard tmp = cp->board[cp->side_to_move][KNIGHT];
+    while (tmp) {
+        uint8_t from = __builtin_ctzll(tmp);
+        tmp &= tmp - 1; // Clear lowest bit
+
+        BitBoard attack = knight_look_up_table[from] & ~(ally_pieces);
+        while (attack) {
+            uint8_t to = __builtin_ctzll(attack);
+            attack &= attack - 1;
+
+            add_move_queue(mq, (Move){
+                               .move_type = CAPTURE,
+                               .capture = (Capture){
+                                   .from = from,
+                                   .to = to,
+                               }
+                           });
+        }
+    }
+}
+
+void gen_bishop_moves() {
+}
+
+void gen_rook_moves() {
+}
+
+void gen_queen_moves() {
+}
+
+
 void gen_pseudo_legal_moves(ChessPosition cp, MoveQueue mq) {
     BitBoard all_pieces = 0;
     BitBoard enemy_pieces = 0;
@@ -256,4 +364,6 @@ void gen_pseudo_legal_moves(ChessPosition cp, MoveQueue mq) {
         enemy_pieces |= cp->board[ENEMY_COLOR(cp->side_to_move)][i];
     }
     gen_pawn_moves(cp, mq, all_pieces, enemy_pieces);
+    gen_king_moves(cp, mq, all_pieces, all_pieces & ~(enemy_pieces));
+    gen_knight_moves(cp, mq, all_pieces & ~(enemy_pieces));
 }
