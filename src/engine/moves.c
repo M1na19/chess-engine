@@ -175,14 +175,14 @@ void gen_pawn_moves(ChessPosition cp, MoveQueue mq, BitBoard all_pieces, BitBoar
         BitBoard non_edge_pawns = pawns & 0x7e7e7e7e7e7e7e7e;
         BitBoard left_pawns = pawns & 0x101010101010101;
         BitBoard right_pawns = pawns & 0x8080808080808080;
-        capture_right = (non_edge_pawns << 9 | left_pawns << 9) & enemy_pieces;
-        capture_left = (non_edge_pawns << 7 | right_pawns << 7) & enemy_pieces;
+        capture_right = (non_edge_pawns << 9 | left_pawns << 9) & (enemy_pieces | cp->en_passant_square);
+        capture_left = (non_edge_pawns << 7 | right_pawns << 7) & (enemy_pieces | cp->en_passant_square);
     } else {
         BitBoard non_edge_pawns = pawns & 0x7e7e7e7e7e7e7e7e;
         BitBoard left_pawns = pawns & 0x8080808080808080;
         BitBoard right_pawns = pawns & 0x101010101010101;
-        capture_right = (non_edge_pawns >> 9 | left_pawns >> 9) & enemy_pieces;
-        capture_left = (non_edge_pawns >> 7 | right_pawns >> 7) & enemy_pieces;
+        capture_right = (non_edge_pawns >> 9 | left_pawns >> 9) & (enemy_pieces | cp->en_passant_square);
+        capture_left = (non_edge_pawns >> 7 | right_pawns >> 7) & (enemy_pieces | cp->en_passant_square);
     }
     tmp = capture_left;
     while (tmp) {
@@ -213,6 +213,7 @@ void gen_pawn_moves(ChessPosition cp, MoveQueue mq, BitBoard all_pieces, BitBoar
                            });
         }
     }
+
     tmp = capture_right;
     while (tmp) {
         uint8_t to = __builtin_ctzll(tmp);
