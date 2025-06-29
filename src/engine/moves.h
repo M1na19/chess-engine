@@ -18,10 +18,10 @@ typedef struct capture {
 } Capture;
 
 typedef enum promotion_type {
-    PROMOTE_BISHOP = 2,
+    PROMOTE_BISHOP = 0,
     PROMOTE_KNIGHT = 1,
-    PROMOTE_ROOK = 3,
-    PROMOTE_QUEEN = 4
+    PROMOTE_ROOK = 2,
+    PROMOTE_QUEEN = 3
 } PromotionType;
 
 typedef struct promotion {
@@ -48,7 +48,6 @@ typedef struct move {
         Capture capture;
     };
 } Move;
-
 
 struct move_cel {
     Move mv;

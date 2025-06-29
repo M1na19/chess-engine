@@ -38,3 +38,7 @@ typedef struct chess_position {
 
 
 void init_position(ChessPosition cp);
+
+void apply_move(ChessPosition cp, Move m);
+
+void gen_pseudo_legal_moves(ChessPosition cp, MoveQueue mq);

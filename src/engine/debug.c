@@ -16,3 +16,10 @@ void print_position(const ChessPosition cp) {
     }
     printf("  a b c d e f g h\n");
 }
+
+uint8_t from_position(const char *pos) {
+    char file = pos[0];
+    char rank = pos[1];
+
+    return (rank - '1') * 8 + file - 'A';
+}

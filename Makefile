@@ -1,6 +1,6 @@
 # Compiler and flags
 CC = gcc
-CFLAGS = -Wall -g -Wextra -std=c99 -O2 -Iinclude
+CFLAGS = -Wall -g -Wextra -std=c99 -O0 -Iinclude
 
 # Source files (recursive wildcard)
 SRCS := $(wildcard src/*.c) \

@@ -12,8 +12,9 @@ void add_move_queue(MoveQueue mq, Move to_add) {
     aux->mv = to_add;
     aux->next = mq->sent;
     aux->prev = mq->sent->prev;
-    mq->sent->next = aux;
+
     mq->sent->prev->next = aux;
+    mq->sent->prev = aux;
 }
 
 Move pop_back_move_queue(MoveQueue mq) {
