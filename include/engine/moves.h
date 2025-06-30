@@ -49,19 +49,4 @@ typedef struct move {
     };
 } Move;
 
-struct move_cel {
-    Move mv;
-    struct move_cel *next, *prev;
-};
 
-typedef struct move_queue {
-    struct move_cel *sent;
-} *MoveQueue;
-
-void init_move_queue(MoveQueue mq);
-
-void add_move_queue(MoveQueue mq, Move to_add);
-
-Move pop_back_move_queue(MoveQueue mq);
-
-Move pop_back_move_queue(MoveQueue mq);

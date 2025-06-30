@@ -1,3 +1,4 @@
+#include "../../../include/engine/precompute/load.h"
 #include "engine/precompute/load.h"
 #include <stdint.h>
 #include <stdio.h>
@@ -26,5 +27,17 @@ void load_knight_bb() {
 void load_king_bb() {
     FILE *in = fopen("data/king.bb", "r");
     fread(king_look_up_table, sizeof(BitBoard), 64, in);
+    fclose(in);
+}
+
+void load_bishop_bb() {
+    FILE *in = fopen("data/bishop.bb", "r");
+    fread(bishop_look_up_table, sizeof(BitBoard), 64, in);
+    fclose(in);
+}
+
+void load_rook_bb() {
+    FILE *in = fopen("data/rook.bb", "r");
+    fread(rook_look_up_table, sizeof(BitBoard), 64, in);
     fclose(in);
 }

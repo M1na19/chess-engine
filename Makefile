@@ -24,8 +24,8 @@ directories:
 $(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) $^ -o $@ -lm
 
-$(TARGET_PRECOMPUTE): src/engine/precompute/precompute.c
-	$(CC) $(CFLAGS) $^ -o $@ -lm
+$(TARGET_PRECOMPUTE): src/engine/precompute/precompute.c src/vector/vector.c src/error/error.c
+	$(CC) -Wall -g -Wextra -std=c99 -Ofast -Iinclude $^ -o $@ -lm
 
 # Compile each source file into object files
 %.o: %.c

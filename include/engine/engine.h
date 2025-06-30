@@ -1,6 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include "moves.h"
+#include "vector.h"
 #define NR_PIECE_TYPES 6
 #define BitBoard uint64_t
 
@@ -41,4 +42,4 @@ void init_position(ChessPosition cp);
 
 void apply_move(ChessPosition cp, Move m);
 
-void gen_pseudo_legal_moves(ChessPosition cp, MoveQueue mq);
+void gen_pseudo_legal_moves(ChessPosition cp, Vector mq);

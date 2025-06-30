@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "vector.h"
 #include "engine/engine.h"
 #include "engine/precompute/load.h"
 
@@ -52,16 +53,19 @@ void apply_move(ChessPosition cp, Move m) {
             add_piece(cp, cp->side_to_move, moved, m.capture.to);
 
             // Update castling rights
-            if (moved == ROOK && (cp->side_to_move == WHITE && m.capture.from == 7 || cp->side_to_move == BLACK && m.
-                                  capture.from == 63) || moved == KING)
+            if (moved == ROOK &&
+                m.capture.from == (cp->side_to_move == WHITE ? 7 : 63) ||
+                moved == KING)
                 cp->castle_laws[cp->side_to_move] &= 0b10;
-            if (moved == ROOK && (cp->side_to_move == WHITE && m.capture.from == 0 || cp->side_to_move == BLACK && m.
-                                  capture.from == 56) || moved == KING)
+            if (moved == ROOK &&
+                m.capture.from == (cp->side_to_move == WHITE ? 0 : 56) ||
+                moved == KING)
                 cp->castle_laws[cp->side_to_move] &= 0b01;
 
-            //Update en_passant
+            // Update en_passant
             if (moved == PAWN && abs(m.capture.to - m.capture.from) == 16) {
-                cp->en_passant_square = 1ULL << ((cp->side_to_move == WHITE ? 8 : -8) + m.capture.from);
+                cp->en_passant_square =
+                        1ULL << ((cp->side_to_move == WHITE ? 8 : -8) + m.capture.from);
             } else {
                 cp->en_passant_square = 0ULL;
             }
@@ -81,7 +85,8 @@ void apply_move(ChessPosition cp, Move m) {
             }
 
             // Add promoted piece
-            add_piece(cp, cp->side_to_move, piece_from_promotion(promoted), m.promotion.to);
+            add_piece(cp, cp->side_to_move, piece_from_promotion(promoted),
+                      m.promotion.to);
             break;
         }
         case CASTLE: {
@@ -120,11 +125,15 @@ void apply_move(ChessPosition cp, Move m) {
             cp->castle_laws[cp->side_to_move] = CANNOT_CASTLE;
             break;
         }
+        default: {
+            exit(-1);
+        }
     }
     cp->side_to_move = ENEMY_COLOR(cp->side_to_move);
 }
 
-void gen_pawn_moves(ChessPosition cp, MoveQueue mq, BitBoard all_pieces, BitBoard enemy_pieces) {
+void gen_pawn_moves(ChessPosition cp, Vector v, BitBoard all_pieces,
+                    BitBoard enemy_pieces) {
     BitBoard pawns = cp->board[cp->side_to_move][PAWN];
     BitBoard empty = ~all_pieces;
 
@@ -134,10 +143,12 @@ void gen_pawn_moves(ChessPosition cp, MoveQueue mq, BitBoard all_pieces, BitBoar
     // Pawn march
     if (cp->side_to_move == WHITE) {
         single_push = (pawns << 8) & empty;
-        double_push = ((single_push & 0x0000000000FF0000ULL) << 8) & empty; // from rank 2
+        double_push =
+                ((single_push & 0x0000000000FF0000ULL) << 8) & empty; // from rank 2
     } else {
         single_push = (pawns >> 8) & empty;
-        double_push = ((single_push & 0x0000FF0000000000ULL) >> 8) & empty; // from rank 7
+        double_push =
+                ((single_push & 0x0000FF0000000000ULL) >> 8) & empty; // from rank 7
     }
 
     BitBoard tmp = single_push;
@@ -150,23 +161,22 @@ void gen_pawn_moves(ChessPosition cp, MoveQueue mq, BitBoard all_pieces, BitBoar
         if (to <= 63 && to >= 54) {
             // No none promotion
             for (PromotionType pt = 0; pt < NR_PROMOTION_TYPE; pt++) {
-                add_move_queue(mq, (Move){
-                                   .move_type = PROMOTION,
-                                   .promotion = (Promotion){
-                                       .from = from,
-                                       .to = to,
-                                       .promotion_type = pt
-                                   }
-                               });
+                push_vector(
+                    v, &(Move){
+                        .move_type = PROMOTION,
+                        .promotion = (Promotion){
+                            .from = from, .to = to, .promotion_type = pt
+                        }
+                    });
             }
         } else {
-            add_move_queue(mq, (Move){
-                               .move_type = CAPTURE,
-                               .capture = (Capture){
-                                   .from = from,
-                                   .to = to,
-                               }
-                           });
+            push_vector(v, &(Move){
+                            .move_type = CAPTURE,
+                            .capture = (Capture){
+                                .from = from,
+                                .to = to,
+                            }
+                        });
         }
     }
     tmp = double_push;
@@ -175,30 +185,34 @@ void gen_pawn_moves(ChessPosition cp, MoveQueue mq, BitBoard all_pieces, BitBoar
         uint8_t from = to + (cp->side_to_move == WHITE ? -16 : 16);
         tmp &= tmp - 1; // Clear lowest bit
 
-        add_move_queue(mq, (Move){
-                           .move_type = CAPTURE,
-                           .capture = (Capture){
-                               .from = from,
-                               .to = to,
-                           }
-                       });
+        push_vector(v, &(Move){
+                        .move_type = CAPTURE,
+                        .capture = (Capture){
+                            .from = from,
+                            .to = to,
+                        }
+                    });
     }
 
-    //Pawn capture
+    // Pawn capture
     BitBoard capture_right;
     BitBoard capture_left;
     if (cp->side_to_move == WHITE) {
         BitBoard non_edge_pawns = pawns & 0x7e7e7e7e7e7e7e7e;
         BitBoard left_pawns = pawns & 0x101010101010101;
         BitBoard right_pawns = pawns & 0x8080808080808080;
-        capture_right = (non_edge_pawns << 9 | left_pawns << 9) & (enemy_pieces | cp->en_passant_square);
-        capture_left = (non_edge_pawns << 7 | right_pawns << 7) & (enemy_pieces | cp->en_passant_square);
+        capture_right = (non_edge_pawns << 9 | left_pawns << 9) &
+                        (enemy_pieces | cp->en_passant_square);
+        capture_left = (non_edge_pawns << 7 | right_pawns << 7) &
+                       (enemy_pieces | cp->en_passant_square);
     } else {
         BitBoard non_edge_pawns = pawns & 0x7e7e7e7e7e7e7e7e;
         BitBoard left_pawns = pawns & 0x8080808080808080;
         BitBoard right_pawns = pawns & 0x101010101010101;
-        capture_right = (non_edge_pawns >> 9 | left_pawns >> 9) & (enemy_pieces | cp->en_passant_square);
-        capture_left = (non_edge_pawns >> 7 | right_pawns >> 7) & (enemy_pieces | cp->en_passant_square);
+        capture_right = (non_edge_pawns >> 9 | left_pawns >> 9) &
+                        (enemy_pieces | cp->en_passant_square);
+        capture_left = (non_edge_pawns >> 7 | right_pawns >> 7) &
+                       (enemy_pieces | cp->en_passant_square);
     }
     tmp = capture_left;
     while (tmp) {
@@ -210,23 +224,22 @@ void gen_pawn_moves(ChessPosition cp, MoveQueue mq, BitBoard all_pieces, BitBoar
         if (to <= 63 && to >= 54) {
             // No none promotion
             for (PromotionType pt = 0; pt < NR_PROMOTION_TYPE; pt++) {
-                add_move_queue(mq, (Move){
-                                   .move_type = PROMOTION,
-                                   .promotion = (Promotion){
-                                       .from = from,
-                                       .to = to,
-                                       .promotion_type = pt
-                                   }
-                               });
+                push_vector(
+                    v, &(Move){
+                        .move_type = PROMOTION,
+                        .promotion = (Promotion){
+                            .from = from, .to = to, .promotion_type = pt
+                        }
+                    });
             }
         } else {
-            add_move_queue(mq, (Move){
-                               .move_type = CAPTURE,
-                               .capture = (Capture){
-                                   .from = from,
-                                   .to = to,
-                               }
-                           });
+            push_vector(v, &(Move){
+                            .move_type = CAPTURE,
+                            .capture = (Capture){
+                                .from = from,
+                                .to = to,
+                            }
+                        });
         }
     }
 
@@ -240,88 +253,82 @@ void gen_pawn_moves(ChessPosition cp, MoveQueue mq, BitBoard all_pieces, BitBoar
         if (to <= 63 && to >= 54) {
             // No none promotion
             for (PromotionType pt = 0; pt < NR_PROMOTION_TYPE; pt++) {
-                add_move_queue(mq, (Move){
-                                   .move_type = PROMOTION,
-                                   .promotion = (Promotion){
-                                       .from = from,
-                                       .to = to,
-                                       .promotion_type = pt
-                                   }
-                               });
+                push_vector(
+                    v, &(Move){
+                        .move_type = PROMOTION,
+                        .promotion = (Promotion){
+                            .from = from, .to = to, .promotion_type = pt
+                        }
+                    });
             }
         } else {
-            add_move_queue(mq, (Move){
-                               .move_type = CAPTURE,
-                               .capture = (Capture){
-                                   .from = from,
-                                   .to = to,
-                               }
-                           });
+            push_vector(v, &(Move){
+                            .move_type = CAPTURE,
+                            .capture = (Capture){
+                                .from = from,
+                                .to = to,
+                            }
+                        });
         }
     }
 }
 
-void gen_king_moves(ChessPosition cp, MoveQueue mq, BitBoard all_pieces, BitBoard ally_pieces) {
+void gen_king_moves(ChessPosition cp, Vector v, BitBoard all_pieces,
+                    BitBoard ally_pieces) {
     uint8_t king_location = __builtin_ctzll(cp->board[cp->side_to_move][KING]);
     BitBoard tmp = king_look_up_table[king_location] & ~(ally_pieces);
     while (tmp) {
         uint8_t to = __builtin_ctzll(tmp);
         tmp &= tmp - 1; // Clear lowest bit
 
-        add_move_queue(mq, (Move){
-                           .move_type = CAPTURE,
-                           .capture = (Capture){
-                               .from = king_location,
-                               .to = to,
-                           }
-                       });
+        push_vector(v, &(Move){
+                        .move_type = CAPTURE,
+                        .capture = (Capture){
+                            .from = king_location,
+                            .to = to,
+                        }
+                    });
     }
     // Check rights
-    if (cp->castle_laws[cp->side_to_move] == CAN_CASTLE_BOTH_WAYS || cp->castle_laws[cp->side_to_move] ==
-        CAN_KING_SIDE_CASTLE) {
+    if ((cp->castle_laws[cp->side_to_move] & 1) != 0) {
         if (cp->side_to_move == WHITE) {
-            //Check empty space and rook is in position
+            // Check empty space and rook is in position
             if ((all_pieces & 0x60) == 0 && (cp->board[WHITE][ROOK] & 0x80) != 0)
-                if (is_square_attacked(cp, 4) == 0 && is_square_attacked(cp, 5) == 0 && is_square_attacked(cp, 6) == 0)
-                    add_move_queue(mq, (Move){
-                                       .move_type = CASTLE,
-                                       .castle = CASTLE_KING
-                                   });
+                if (is_square_attacked(cp, 4) == 0 && is_square_attacked(cp, 5) == 0 &&
+                    is_square_attacked(cp, 6) == 0)
+                    push_vector(v,
+                                &(Move){.move_type = CASTLE, .castle = CASTLE_KING});
         } else {
-            //Check empty space and rook is in position
-            if ((all_pieces & 0x6000000000000000) == 0 && (cp->board[BLACK][ROOK] & 0x8000000000000000) != 0)
-                if (is_square_attacked(cp, 60) == 0 && is_square_attacked(cp, 61) == 0 && is_square_attacked(cp, 62) ==
-                    0)
-                    add_move_queue(mq, (Move){
-                                       .move_type = CASTLE,
-                                       .castle = CASTLE_KING
-                                   });
+            // Check empty space and rook is in position
+            if ((all_pieces & 0x6000000000000000) == 0 &&
+                (cp->board[BLACK][ROOK] & 0x8000000000000000) != 0)
+                if (is_square_attacked(cp, 60) == 0 &&
+                    is_square_attacked(cp, 61) == 0 && is_square_attacked(cp, 62) == 0)
+                    push_vector(v,
+                                &(Move){.move_type = CASTLE, .castle = CASTLE_KING});
         }
     }
-    if (cp->castle_laws[cp->side_to_move] == CAN_CASTLE_BOTH_WAYS || cp->castle_laws[cp->side_to_move] ==
-        CAN_QUEEN_SIDE_CASTLE) {
+    if ((cp->castle_laws[cp->side_to_move] & 2) != 0) {
         if (cp->side_to_move == WHITE) {
-            //Check empty space and rook is in position
+            // Check empty space and rook is in position
             if ((all_pieces & 0xc) == 0 && (cp->board[WHITE][ROOK] & 0x1) != 0)
-                if (is_square_attacked(cp, 2) == 0 && is_square_attacked(cp, 3) == 0 && is_square_attacked(cp, 4) == 0)
-                    add_move_queue(mq, (Move){
-                                       .move_type = CASTLE,
-                                       .castle = CASTLE_QUEEN
-                                   });
+                if (is_square_attacked(cp, 2) == 0 && is_square_attacked(cp, 3) == 0 &&
+                    is_square_attacked(cp, 4) == 0)
+                    push_vector(v,
+                                &(Move){.move_type = CASTLE, .castle = CASTLE_QUEEN});
         } else {
-            //Check empty space and rook is in position
-            if ((all_pieces & 0xc00000000000000) == 0 && (cp->board[BLACK][ROOK] & 0x100000000000000) != 0)
-                if (is_square_attacked(cp, 58) == 0 && is_square_attacked(cp, 59) == 0 && is_square_attacked(cp, 60) ==
-                    0)
-                    add_move_queue(mq, (Move){
-                                       .move_type = CASTLE,
-                                       .castle = CASTLE_QUEEN
-                                   });
+            // Check empty space and rook is in position
+            if ((all_pieces & 0xc00000000000000) == 0 &&
+                (cp->board[BLACK][ROOK] & 0x100000000000000) != 0)
+                if (is_square_attacked(cp, 58) == 0 &&
+                    is_square_attacked(cp, 59) == 0 && is_square_attacked(cp, 60) == 0)
+                    push_vector(v,
+                                &(Move){.move_type = CASTLE, .castle = CASTLE_QUEEN});
         }
     }
 }
 
-void gen_knight_moves(ChessPosition cp, MoveQueue mq, BitBoard ally_pieces) {
+void gen_knight_moves(ChessPosition cp, Vector v, BitBoard ally_pieces) {
     BitBoard tmp = cp->board[cp->side_to_move][KNIGHT];
     while (tmp) {
         uint8_t from = __builtin_ctzll(tmp);
@@ -332,13 +339,13 @@ void gen_knight_moves(ChessPosition cp, MoveQueue mq, BitBoard ally_pieces) {
             uint8_t to = __builtin_ctzll(attack);
             attack &= attack - 1;
 
-            add_move_queue(mq, (Move){
-                               .move_type = CAPTURE,
-                               .capture = (Capture){
-                                   .from = from,
-                                   .to = to,
-                               }
-                           });
+            push_vector(v, &(Move){
+                            .move_type = CAPTURE,
+                            .capture = (Capture){
+                                .from = from,
+                                .to = to,
+                            }
+                        });
         }
     }
 }
@@ -352,8 +359,7 @@ void gen_rook_moves() {
 void gen_queen_moves() {
 }
 
-
-void gen_pseudo_legal_moves(ChessPosition cp, MoveQueue mq) {
+void gen_pseudo_legal_moves(ChessPosition cp, Vector v) {
     BitBoard all_pieces = 0;
     BitBoard enemy_pieces = 0;
     for (int i = 0; i < NR_PIECE_TYPES; i++) {
@@ -363,7 +369,7 @@ void gen_pseudo_legal_moves(ChessPosition cp, MoveQueue mq) {
     for (int i = 0; i < NR_PIECE_TYPES; i++) {
         enemy_pieces |= cp->board[ENEMY_COLOR(cp->side_to_move)][i];
     }
-    gen_pawn_moves(cp, mq, all_pieces, enemy_pieces);
-    gen_king_moves(cp, mq, all_pieces, all_pieces & ~(enemy_pieces));
-    gen_knight_moves(cp, mq, all_pieces & ~(enemy_pieces));
+    gen_pawn_moves(cp, v, all_pieces, enemy_pieces);
+    gen_king_moves(cp, v, all_pieces, all_pieces & ~(enemy_pieces));
+    gen_knight_moves(cp, v, all_pieces & ~(enemy_pieces));
 }
