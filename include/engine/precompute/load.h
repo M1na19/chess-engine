@@ -4,10 +4,10 @@
 
 #include "engine/engine.h"
 
-BitBoard knight_look_up_table[64];
-BitBoard king_look_up_table[64];
-BitBoard bishop_look_up_table[64];
-BitBoard rook_look_up_table[64];
+extern BitBoard knight_look_up_table[64];
+extern BitBoard king_look_up_table[64];
+extern BitBoard bishop_look_up_table[64];
+extern BitBoard rook_look_up_table[64];
 
 void load_knight_bb();
 

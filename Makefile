@@ -12,11 +12,12 @@ OBJS := $(SRCS:.c=.o)
 # Output executable
 TARGET = build/chess
 TARGET_PRECOMPUTE=build/precompute
-.PHONY: all clean directories
 
-all: directories $(TARGET)
+.PHONY: all clean directories precompute
 
-precompute: directories $(TARGET_PRECOMPUTE)
+all: directories $(TARGET) $(TARGET_PRECOMPUTE)
+
+
 
 directories:
 	mkdir -p build
@@ -24,12 +25,22 @@ directories:
 $(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) $^ -o $@ -lm
 
-$(TARGET_PRECOMPUTE): src/engine/precompute/precompute.c src/vector/vector.c src/error/error.c
-	$(CC) -Wall -g -Wextra -std=c99 -Ofast -Iinclude $^ -o $@ -lm
-
 # Compile each source file into object files
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
 	rm -rf build $(OBJS)
+
+
+# Source files (recursive wildcard)
+SRCS_PRECOMPUTE := $(shell find src -name '*.c')
+SRCS_PRECOMPUTE := $(filter-out src/main.c, $(SRCS_PRECOMPUTE))
+
+# Object files
+OBJS_PRECOMPUTE := $(SRCS_PRECOMPUTE:.c=.o)
+
+precompute: directories $(TARGET_PRECOMPUTE)
+
+$(TARGET_PRECOMPUTE): $(OBJS_PRECOMPUTE)
+	$(CC) $(CFLAGS) $^ -o $@ -lm
