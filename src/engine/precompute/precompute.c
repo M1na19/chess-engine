@@ -12,7 +12,11 @@
 #include <string.h>
 #include <time.h>
 
+int THREADS_PER_SQUARE;
 int main() {
+  THREADS_PER_SQUARE = sysconf(_SC_NPROCESSORS_ONLN);
+
+  printf("Using %d threads\n", THREADS_PER_SQUARE);
   printf("Generating king bitboard:\n");
   generate_king_bitboards();
   printf("Done\n");

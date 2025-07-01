@@ -2,8 +2,10 @@
 #include "engine/engine.h"
 #include "pthread.h"
 #include "stdatomic.h"
+#include <unistd.h>
 
-#define THREADS_PER_SQUARE 16
+extern int THREADS_PER_SQUARE;
+#define NR_MAX_TRIES ((int)1e8)
 
 typedef struct occupancy_attack {
   BitBoard occupancy;
@@ -12,7 +14,7 @@ typedef struct occupancy_attack {
 
 typedef struct {
   Vector values;
-  uint8_t nr_bits;
+  atomic_char *nr_bits;
 
   atomic_ullong *magic_number_found;
   BitBoard *result_table;

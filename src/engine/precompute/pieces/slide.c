@@ -27,18 +27,25 @@ void *magic_worker(void *arg) {
   MagicThreadArgs *args = (MagicThreadArgs *)arg;
   Vector values = args->values;
 
-  uint32_t table_size = 1 << args->nr_bits;
+  uint8_t nr_bits = atomic_load(args->nr_bits);
+  uint32_t table_size = 1 << nr_bits;
+  BitBoard *used = calloc(table_size, sizeof(BitBoard));
 
-  // Check if other thread finished
-  while (atomic_load(args->magic_number_found) == 0) {
+  for (int tries = 0; tries < NR_MAX_TRIES / THREADS_PER_SQUARE; tries++) {
+    if (nr_bits != atomic_load(args->nr_bits)) {
+      tries = 0;
+      nr_bits = atomic_load(args->nr_bits);
+    }
+    table_size = 1 << nr_bits;
+    memset(used, 0, sizeof(BitBoard) * table_size);
+
     uint64_t m = random_magic();
-    BitBoard *used = calloc(table_size, sizeof(BitBoard));
 
     // Check magic numbers against values
     uint8_t fail = 0;
     for (size_t i = 0; i < values->count; i++) {
       OccupancyAttack oa = VALUE(OccupancyAttack, get_vector(values, i));
-      uint64_t key = (oa.occupancy * m) >> (64 - args->nr_bits);
+      uint64_t key = (oa.occupancy * m) >> (64 - nr_bits);
 
       if (used[key] == 0) {
         used[key] = oa.attack;
@@ -53,18 +60,18 @@ void *magic_worker(void *arg) {
       pthread_mutex_lock(args->result_mutex);
 
       // Check other threads finished already
-      if (*(args->magic_number_found) == 0) {
+      if (nr_bits == atomic_load(args->nr_bits) && nr_bits > 0) {
+        printf("\tFound magic with %u bits\n", nr_bits);
         atomic_store(args->magic_number_found, m);
+        atomic_store(args->nr_bits, nr_bits - 1);
         memcpy(args->result_table, used, table_size * sizeof(BitBoard));
       }
 
       // Release
       pthread_mutex_unlock(args->result_mutex);
     }
-
-    free(used);
   }
-
+  free(used);
   return NULL;
 }
 
@@ -91,8 +98,8 @@ void generate_bishop_bitboards() {
       int8_t sq_moved = sq + dir[k];
 
       // ignore edge cases, check square is inside table
-      while (sq_moved >= 8 && sq_moved <= 55 && file_moved >= 1 &&
-             file_moved <= 6) {
+      while (sq_moved >= 0 && sq_moved <= 63 && file_moved >= 0 &&
+             file_moved <= 7) {
         push_vector(moves, &sq_moved);
         sq_moved += dir[k];
         file_moved += file_delta[k];
@@ -128,8 +135,8 @@ void generate_bishop_bitboards() {
         }
 
         // if blocked by piece, add capture
-        if (sq_moved >= 8 && sq_moved <= 55 && file_moved >= 1 &&
-            file_moved <= 6) {
+        if (sq_moved >= 0 && sq_moved <= 63 && file_moved >= 0 &&
+            file_moved <= 7) {
           attack |= 1ULL << sq_moved;
         }
       }
@@ -141,6 +148,7 @@ void generate_bishop_bitboards() {
     // Reset moves
     moves->count = 0;
   }
+  free_vector(moves);
 
   // Calculating multithreaded magic numbers
   pthread_mutex_t result_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -151,12 +159,7 @@ void generate_bishop_bitboards() {
     Vector values = get_vector(data, sq);
 
     // Calculate minimum number of bits
-    uint8_t nr_bits = 0;
-    uint64_t tmp = values->count - 1;
-    while (tmp) {
-      nr_bits++;
-      tmp >>= 1;
-    }
+    atomic_char nr_bits = 10;
 
     uint32_t table_size = 1UL << nr_bits;
     pthread_t threads[THREADS_PER_SQUARE];
@@ -168,7 +171,7 @@ void generate_bishop_bitboards() {
     atomic_ullong magic_num = 0;
     for (int i = 0; i < THREADS_PER_SQUARE; i++) {
       thread_args[i] = (MagicThreadArgs){.values = values,
-                                         .nr_bits = nr_bits,
+                                         .nr_bits = &nr_bits,
                                          .result_table = result_table,
                                          .magic_number_found = &magic_num,
                                          .result_mutex = &result_mutex};
@@ -179,20 +182,22 @@ void generate_bishop_bitboards() {
       pthread_join(threads[i], NULL);
     }
     uint64_t m = atomic_load(&magic_num);
-
+    uint8_t bits =
+        atomic_load(&nr_bits) + 1; // Last try failed so best try has one more
     if (magic_num != 0) {
-      printf("✓ Found magic for square %u: %lu\n", sq, m);
-      fwrite(&sq, sizeof(sq), 1, out);
+      printf("✓ Found magic for square %u with %u bits: %lu\n", sq, bits, m);
       fwrite(&m, sizeof(uint64_t), 1, out);
-      fwrite(&nr_bits, sizeof(nr_bits), 1, out);
+      fwrite(&bits, sizeof(nr_bits), 1, out);
       fwrite(result_table, sizeof(BitBoard), table_size, out);
     } else {
       printf("✗ Failed for square %u\n", sq);
+      // Do this till you find one with at least max bits
+      sq--;
     }
 
     free(result_table);
   }
-
+  free_vector(data);
   fclose(out);
 }
 
@@ -218,9 +223,9 @@ void generate_rook_bitboards() {
       int8_t file_moved = file + file_delta[k];
       int8_t sq_moved = sq + dir[k];
 
-      // ignore edge cases, check square is inside table
-      while (sq_moved >= 8 && sq_moved <= 55 && file_moved >= 1 &&
-             file_moved <= 6) {
+      // check square is inside table
+      while (sq_moved >= 0 && sq_moved <= 63 && file_moved >= 0 &&
+             file_moved <= 7) {
         push_vector(moves, &sq_moved);
         sq_moved += dir[k];
         file_moved += file_delta[k];
@@ -256,8 +261,8 @@ void generate_rook_bitboards() {
         }
 
         // if blocked by piece, add capture
-        if (sq_moved >= 8 && sq_moved <= 55 && file_moved >= 1 &&
-            file_moved <= 6) {
+        if (sq_moved >= 0 && sq_moved <= 63 && file_moved >= 0 &&
+            file_moved <= 7) {
           attack |= 1ULL << sq_moved;
         }
       }
@@ -269,7 +274,7 @@ void generate_rook_bitboards() {
     // Reset moves
     moves->count = 0;
   }
-
+  free_vector(moves);
   // Calculating multithreaded magic numbers
   pthread_mutex_t result_mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -279,12 +284,7 @@ void generate_rook_bitboards() {
     Vector values = get_vector(data, sq);
 
     // Calculate minimum number of bits
-    uint8_t nr_bits = 0;
-    uint64_t tmp = values->count - 1;
-    while (tmp) {
-      nr_bits++;
-      tmp >>= 1;
-    }
+    atomic_char nr_bits = 12;
 
     uint32_t table_size = 1UL << nr_bits;
     pthread_t threads[THREADS_PER_SQUARE];
@@ -296,7 +296,7 @@ void generate_rook_bitboards() {
     atomic_ullong magic_num = 0;
     for (int i = 0; i < THREADS_PER_SQUARE; i++) {
       thread_args[i] = (MagicThreadArgs){.values = values,
-                                         .nr_bits = nr_bits,
+                                         .nr_bits = &nr_bits,
                                          .result_table = result_table,
                                          .magic_number_found = &magic_num,
                                          .result_mutex = &result_mutex};
@@ -307,19 +307,21 @@ void generate_rook_bitboards() {
       pthread_join(threads[i], NULL);
     }
     uint64_t m = atomic_load(&magic_num);
-
+    uint8_t bits =
+        atomic_load(&nr_bits) + 1; // Last try failed so best try has one more
     if (magic_num != 0) {
-      printf("✓ Found magic for square %u: %lu\n", sq, m);
-      fwrite(&sq, sizeof(sq), 1, out);
+      printf("✓ Found magic for square %u with %u bits: %lu\n", sq, bits, m);
       fwrite(&m, sizeof(uint64_t), 1, out);
-      fwrite(&nr_bits, sizeof(nr_bits), 1, out);
+      fwrite(&bits, sizeof(nr_bits), 1, out);
       fwrite(result_table, sizeof(BitBoard), table_size, out);
     } else {
       printf("✗ Failed for square %u\n", sq);
+      // Do this till you find one with at least max bits
+      sq--;
     }
 
     free(result_table);
   }
-
+  free_vector(data);
   fclose(out);
 }
