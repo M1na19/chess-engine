@@ -159,7 +159,7 @@ void generate_bishop_bitboards() {
     Vector values = get_vector(data, sq);
 
     // Calculate minimum number of bits
-    atomic_char nr_bits = 10;
+    atomic_char nr_bits = 14;
 
     uint32_t table_size = 1UL << nr_bits;
     pthread_t threads[THREADS_PER_SQUARE];
@@ -284,7 +284,7 @@ void generate_rook_bitboards() {
     Vector values = get_vector(data, sq);
 
     // Calculate minimum number of bits
-    atomic_char nr_bits = 12;
+    atomic_char nr_bits = 15;
 
     uint32_t table_size = 1UL << nr_bits;
     pthread_t threads[THREADS_PER_SQUARE];
