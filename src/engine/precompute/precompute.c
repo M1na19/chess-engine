@@ -12,9 +12,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
 int THREADS;
 int main() {
-  signal(SIGINT, handle_sigint);
+  struct sigaction sa;
+
+  sa.sa_handler = handle_sigint;
+  sigemptyset(&sa.sa_mask);
+  sa.sa_flags = SA_RESTART; /* Restart functions if
+                               interrupted by handler */
+  sigaction(SIGINT, &sa, NULL);
 
   // Limit concurency
   THREADS = sysconf(_SC_NPROCESSORS_ONLN);
