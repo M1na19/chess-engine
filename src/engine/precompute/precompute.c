@@ -5,13 +5,13 @@
 #include <engine/engine.h>
 #include <math.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdatomic.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-
 int THREADS;
 int main() {
   signal(SIGINT, handle_sigint);

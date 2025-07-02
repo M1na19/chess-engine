@@ -110,6 +110,8 @@ void generate_bishop_bitboards() {
         sq_moved += dir[k];
         file_moved += file_delta[k];
       }
+      if (moves->count > 0)
+        pop_back_vector(moves, NULL); // Last one is irelevant
     }
 
     // Vector to keep occupancy + attack combinations
@@ -247,6 +249,8 @@ void generate_rook_bitboards() {
         sq_moved += dir[k];
         file_moved += file_delta[k];
       }
+      if (moves->count > 0)
+        pop_back_vector(moves, NULL); // Last one is irelevant
     }
 
     // Vector to keep occupancy + attack combinations
