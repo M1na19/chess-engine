@@ -1,6 +1,7 @@
 #pragma once
 #define NR_PROMOTION_TYPE 4
 
+#define NR_PIECE_TYPES 6
 typedef enum piece_type {
   PAWN = 0,
   KNIGHT = 1,

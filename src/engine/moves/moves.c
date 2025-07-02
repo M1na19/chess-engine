@@ -1,13 +1,71 @@
-#include <stdio.h>
-#include <stdlib.h>
-
+#include "engine/debug.h"
 #include "engine/engine.h"
 #include "engine/precompute/load.h"
 #include "vector.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-unsigned char is_square_attacked(ChessPosition cp, uint8_t position) {
-  // TO DO
-  return '0';
+unsigned char is_square_attacked(ChessPosition cp, Color by, uint8_t position) {
+  BitBoard location = 1ULL < position;
+  // 1. Check if pawns attack
+  BitBoard pawns = cp->board[by][PAWN];
+  BitBoard capture;
+  if (cp->side_to_move == WHITE) {
+    BitBoard non_edge_pawns = pawns & 0x7e7e7e7e7e7e7e7e;
+    BitBoard left_pawns = pawns & 0x101010101010101;
+    BitBoard right_pawns = pawns & 0x8080808080808080;
+    capture = (non_edge_pawns << 9 | left_pawns << 9) |
+              (non_edge_pawns << 7 | right_pawns << 7);
+
+  } else {
+    BitBoard non_edge_pawns = pawns & 0x7e7e7e7e7e7e7e7e;
+    BitBoard left_pawns = pawns & 0x8080808080808080;
+    BitBoard right_pawns = pawns & 0x101010101010101;
+    capture = (non_edge_pawns >> 9 | left_pawns >> 9) |
+              (non_edge_pawns >> 7 | right_pawns >> 7);
+  }
+  if (capture & location)
+    return 1;
+
+  // 2. Check if king attacks
+  BitBoard king = cp->board[by][KING];
+  if (king_look_up_table[__builtin_ctzll(king)] & location)
+    return 1;
+
+  // 3. Check if knights attack
+  BitBoard knights = cp->board[by][KNIGHT];
+  while (knights)
+    if (knight_look_up_table[__builtin_ctzll(knights)] & location)
+      return 1;
+    else
+      knights &= knights - 1;
+
+  // Compute all pieces bitboard
+  BitBoard all_pieces = 0;
+  for (int i = 0; i < NR_PIECE_TYPES; i++) {
+    all_pieces |= cp->board[WHITE][i] | cp->board[BLACK][i];
+  }
+
+  // 4. Check if bishops or queens attack
+  BitBoard bishops = cp->board[by][BISHOP] | cp->board[by][QUEEN];
+  while (bishops) {
+    uint8_t from = __builtin_ctzll(bishops);
+    bishops &= bishops - 1;
+    if (get_attack_magic_vec(bishop_look_up_table[from], all_pieces) & location)
+      return 1;
+  }
+
+  // 5.Check if rooks or queens attack
+  BitBoard rooks = cp->board[by][ROOK] | cp->board[by][QUEEN];
+  while (rooks) {
+    uint8_t from = __builtin_ctzll(rooks);
+    rooks &= rooks - 1;
+    if (get_attack_magic_vec(rook_look_up_table[from], all_pieces) & location)
+      return 1;
+  }
+
+  return 0;
 }
 
 void remove_piece(ChessPosition cp, Color c, PieceType pt, uint8_t sq) {
@@ -275,15 +333,17 @@ void gen_king_moves(ChessPosition cp, Vector v, BitBoard all_pieces,
     if (cp->side_to_move == WHITE) {
       // Check empty space and rook is in position
       if ((all_pieces & 0x60) == 0 && (cp->board[WHITE][ROOK] & 0x80) != 0)
-        if (is_square_attacked(cp, 4) == 0 && is_square_attacked(cp, 5) == 0 &&
-            is_square_attacked(cp, 6) == 0)
+        if (is_square_attacked(cp, BLACK, 4) == 0 &&
+            is_square_attacked(cp, BLACK, 5) == 0 &&
+            is_square_attacked(cp, BLACK, 6) == 0)
           push_vector(v, &(Move){.move_type = CASTLE, .castle = CASTLE_KING});
     } else {
       // Check empty space and rook is in position
       if ((all_pieces & 0x6000000000000000) == 0 &&
           (cp->board[BLACK][ROOK] & 0x8000000000000000) != 0)
-        if (is_square_attacked(cp, 60) == 0 &&
-            is_square_attacked(cp, 61) == 0 && is_square_attacked(cp, 62) == 0)
+        if (is_square_attacked(cp, WHITE, 60) == 0 &&
+            is_square_attacked(cp, WHITE, 61) == 0 &&
+            is_square_attacked(cp, WHITE, 62) == 0)
           push_vector(v, &(Move){.move_type = CASTLE, .castle = CASTLE_KING});
     }
   }
@@ -291,15 +351,17 @@ void gen_king_moves(ChessPosition cp, Vector v, BitBoard all_pieces,
     if (cp->side_to_move == WHITE) {
       // Check empty space and rook is in position
       if ((all_pieces & 0xc) == 0 && (cp->board[WHITE][ROOK] & 0x1) != 0)
-        if (is_square_attacked(cp, 2) == 0 && is_square_attacked(cp, 3) == 0 &&
-            is_square_attacked(cp, 4) == 0)
+        if (is_square_attacked(cp, BLACK, 2) == 0 &&
+            is_square_attacked(cp, BLACK, 3) == 0 &&
+            is_square_attacked(cp, BLACK, 4) == 0)
           push_vector(v, &(Move){.move_type = CASTLE, .castle = CASTLE_QUEEN});
     } else {
       // Check empty space and rook is in position
       if ((all_pieces & 0xc00000000000000) == 0 &&
           (cp->board[BLACK][ROOK] & 0x100000000000000) != 0)
-        if (is_square_attacked(cp, 58) == 0 &&
-            is_square_attacked(cp, 59) == 0 && is_square_attacked(cp, 60) == 0)
+        if (is_square_attacked(cp, WHITE, 58) == 0 &&
+            is_square_attacked(cp, WHITE, 59) == 0 &&
+            is_square_attacked(cp, WHITE, 60) == 0)
           push_vector(v, &(Move){.move_type = CASTLE, .castle = CASTLE_QUEEN});
     }
   }
@@ -324,24 +386,139 @@ void gen_knight_moves(ChessPosition cp, Vector v, BitBoard ally_pieces) {
     }
   }
 }
+void gen_bishop_moves(ChessPosition cp, Vector v, BitBoard ally_pieces,
+                      BitBoard enemy_pieces) {
+  BitBoard tmp = cp->board[cp->side_to_move][BISHOP];
+  while (tmp) {
+    uint8_t from = __builtin_ctzll(tmp);
+    tmp &= tmp - 1; // Clear lowest bit
 
-void gen_bishop_moves() {}
+    BitBoard attack = get_attack_magic_vec(bishop_look_up_table[from],
+                                           (enemy_pieces | ally_pieces)) &
+                      ~(ally_pieces);
+    while (attack) {
+      uint8_t to = __builtin_ctzll(attack);
+      attack &= attack - 1;
 
-void gen_rook_moves() {}
+      push_vector(v, &(Move){.move_type = CAPTURE,
+                             .capture = (Capture){
+                                 .from = from,
+                                 .to = to,
+                             }});
+    }
+  }
+}
 
-void gen_queen_moves() {}
+void gen_rook_moves(ChessPosition cp, Vector v, BitBoard ally_pieces,
+                    BitBoard enemy_pieces) {
+  BitBoard tmp = cp->board[cp->side_to_move][ROOK];
+  while (tmp) {
+    uint8_t from = __builtin_ctzll(tmp);
+    tmp &= tmp - 1; // Clear lowest bit
+
+    BitBoard attack = get_attack_magic_vec(rook_look_up_table[from],
+                                           (enemy_pieces | ally_pieces)) &
+                      ~(ally_pieces);
+    while (attack) {
+      uint8_t to = __builtin_ctzll(attack);
+      attack &= attack - 1;
+
+      push_vector(v, &(Move){.move_type = CAPTURE,
+                             .capture = (Capture){
+                                 .from = from,
+                                 .to = to,
+                             }});
+    }
+  }
+}
+
+void gen_queen_moves(ChessPosition cp, Vector v, BitBoard ally_pieces,
+                     BitBoard enemy_pieces) {
+  BitBoard tmp = cp->board[cp->side_to_move][QUEEN];
+  while (tmp) {
+    uint8_t from = __builtin_ctzll(tmp);
+    tmp &= tmp - 1; // Clear lowest bit
+
+    BitBoard attack_bishop =
+        get_attack_magic_vec(bishop_look_up_table[from],
+                             (enemy_pieces | ally_pieces)) &
+        ~(ally_pieces);
+    BitBoard attack_rook = get_attack_magic_vec(rook_look_up_table[from],
+                                                (enemy_pieces | ally_pieces)) &
+                           ~(ally_pieces);
+
+    BitBoard attack = attack_rook | attack_bishop;
+    while (attack) {
+      uint8_t to = __builtin_ctzll(attack);
+      attack &= attack - 1;
+
+      push_vector(v, &(Move){.move_type = CAPTURE,
+                             .capture = (Capture){
+                                 .from = from,
+                                 .to = to,
+                             }});
+    }
+  }
+}
 
 void gen_pseudo_legal_moves(ChessPosition cp, Vector v) {
-  BitBoard all_pieces = 0;
+  BitBoard ally_pieces = 0;
   BitBoard enemy_pieces = 0;
   for (int i = 0; i < NR_PIECE_TYPES; i++) {
-    all_pieces |= cp->board[WHITE][i];
-    all_pieces |= cp->board[BLACK][i];
-  }
-  for (int i = 0; i < NR_PIECE_TYPES; i++) {
+    ally_pieces |= cp->board[cp->side_to_move][i];
     enemy_pieces |= cp->board[ENEMY_COLOR(cp->side_to_move)][i];
   }
-  gen_pawn_moves(cp, v, all_pieces, enemy_pieces);
-  gen_king_moves(cp, v, all_pieces, all_pieces & ~(enemy_pieces));
-  gen_knight_moves(cp, v, all_pieces & ~(enemy_pieces));
+  gen_pawn_moves(cp, v, ally_pieces | enemy_pieces, enemy_pieces);
+  gen_king_moves(cp, v, ally_pieces | enemy_pieces, ally_pieces);
+  gen_knight_moves(cp, v, ally_pieces);
+  gen_bishop_moves(cp, v, ally_pieces, enemy_pieces);
+  gen_rook_moves(cp, v, ally_pieces, enemy_pieces);
+  gen_queen_moves(cp, v, ally_pieces, enemy_pieces);
+}
+
+void gen_legal_moves(ChessPosition cp, Vector v) {
+  gen_pseudo_legal_moves(cp, v);
+
+  Vector legal = alloca(sizeof(struct vector));
+  init_vector(legal, sizeof(Move), v->count);
+
+  for (int i = 0; i < v->count; i++) {
+    ChessPosition next = alloca(sizeof(struct chess_position));
+    memcpy(next, cp, sizeof(struct chess_position));
+
+    apply_move(next, VALUE(Move, get_vector(v, i)));
+    if (!is_square_attacked(
+            next, next->side_to_move,
+            __builtin_ctzll(next->board[cp->side_to_move][KING]))) {
+      push_vector(legal, get_vector(v, i));
+    }
+  }
+  free(v->data);
+  *v = *legal;
+}
+int perft(ChessPosition cp, int depth) {
+  Vector moves = alloca(sizeof(struct vector));
+  init_vector(moves, sizeof(Move), 256);
+
+  gen_legal_moves(cp, moves);
+  if (depth == 1) {
+    // printf("\nEnd of line\n");
+    int nr = moves->count;
+    free_vector(moves);
+    return nr;
+  }
+
+  uint64_t total = 0;
+  for (int i = 0; i < moves->count; i++) {
+    ChessPosition next = alloca(sizeof(struct chess_position));
+    memcpy(next, cp, sizeof(struct chess_position));
+    // TODO implement undo logic
+    apply_move(next, VALUE(Move, get_vector(moves, i)));
+
+    // print_position(next);
+    total += perft(next, depth - 1);
+  }
+
+  free_vector(moves);
+  return total;
 }

@@ -2,7 +2,6 @@
 #include "moves.h"
 #include "vector.h"
 #include <stdint.h>
-#define NR_PIECE_TYPES 6
 #define BitBoard uint64_t
 
 #define NR_PIECE_COLORS 2
@@ -37,7 +36,9 @@ typedef struct chess_position {
 } *ChessPosition;
 
 void init_position(ChessPosition cp);
+void init_position_from_fen(ChessPosition cp, const char *fen);
 
 void apply_move(ChessPosition cp, Move m);
 
-void gen_pseudo_legal_moves(ChessPosition cp, Vector mq);
+void gen_legal_moves(ChessPosition cp, Vector v);
+int perft(ChessPosition cp, int depth);

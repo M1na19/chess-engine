@@ -1,6 +1,6 @@
 # Compiler and flags
 CC = gcc
-CFLAGS = -Wall -g -Wextra -std=c99 -O0 -Iinclude
+CFLAGS = -Wall -g -Wextra -std=c99 -Ofast -march=native -Iinclude
 
 # Source files (recursive wildcard)
 SRCS := $(shell find src -name '*.c')

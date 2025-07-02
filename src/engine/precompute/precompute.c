@@ -1,3 +1,8 @@
+#ifdef __linux__
+#define _POSIX_C_SOURCE 200809L
+#define _GNU_SOURCE
+#endif
+
 #include "engine/precompute/pieces/slide.h"
 #include "engine/precompute/pieces/step.h"
 #include <alloca.h>
@@ -25,7 +30,7 @@ int main() {
 
   // Limit concurency
   THREADS = sysconf(_SC_NPROCESSORS_ONLN);
-  sem_init(&semaphore, 0, THREADS);
+  sem_open("/magic_semaphore", O_CREAT, 0644, 0);
 
   printf("Using %d threads\n", THREADS);
   printf("Generating king bitboard:\n");

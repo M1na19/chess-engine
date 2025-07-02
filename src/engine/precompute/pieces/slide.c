@@ -95,6 +95,7 @@ void generate_bishop_bitboards() {
   Vector moves = alloca(sizeof(struct vector));
   init_vector(moves, sizeof(uint8_t), 64);
 
+  BitBoard attack_mask[64] = {0};
   for (uint8_t sq = 0; sq < 64; sq++) {
     printf("Calculating all attack patterns for square %u\n", sq);
 
@@ -103,15 +104,20 @@ void generate_bishop_bitboards() {
       int8_t file_moved = file + file_delta[k];
       int8_t sq_moved = sq + dir[k];
 
+      uint8_t good_dir = 0;
       // ignore edge cases, check square is inside table
       while (sq_moved >= 0 && sq_moved <= 63 && file_moved >= 0 &&
              file_moved <= 7) {
+        good_dir = 1;
+        attack_mask[sq] |= 1ULL << sq_moved;
         push_vector(moves, &sq_moved);
         sq_moved += dir[k];
         file_moved += file_delta[k];
       }
-      if (moves->count > 0)
+      if (good_dir) {
+        attack_mask[sq] &= ~(1ULL << (sq_moved - dir[k]));
         pop_back_vector(moves, NULL); // Last one is irelevant
+      }
     }
 
     // Vector to keep occupancy + attack combinations
@@ -205,10 +211,13 @@ void generate_bishop_bitboards() {
 
   for (int i = 0; i < 64; i++) {
     pthread_join(threads[i], NULL);
-    fwrite(&magic_nums[i], sizeof(uint64_t), 1, out);
-    fwrite(&nr_bits[i], sizeof(uint8_t), 1, out);
+    uint64_t m = magic_nums[i];
+    uint8_t b = nr_bits[i];
+    fwrite(&attack_mask[i], sizeof(BitBoard), 1, out);
+    fwrite(&m, sizeof(uint64_t), 1, out);
+    fwrite(&b, sizeof(uint8_t), 1, out);
 
-    uint32_t table_size = 1 << nr_bits[i];
+    uint32_t table_size = 1 << b;
     fwrite(result_table[i], sizeof(BitBoard), table_size, out);
     free(result_table[i]);
   }
@@ -234,6 +243,7 @@ void generate_rook_bitboards() {
   Vector moves = alloca(sizeof(struct vector));
   init_vector(moves, sizeof(uint8_t), 64);
 
+  BitBoard attack_mask[64] = {0};
   for (uint8_t sq = 0; sq < 64; sq++) {
     printf("Calculating all attack patterns for square %u\n", sq);
 
@@ -242,15 +252,20 @@ void generate_rook_bitboards() {
       int8_t file_moved = file + file_delta[k];
       int8_t sq_moved = sq + dir[k];
 
+      uint8_t good_dir = 0;
       // ignore edge cases, check square is inside table
       while (sq_moved >= 0 && sq_moved <= 63 && file_moved >= 0 &&
              file_moved <= 7) {
+        good_dir = 1;
+        attack_mask[sq] |= 1ULL << sq_moved;
         push_vector(moves, &sq_moved);
         sq_moved += dir[k];
         file_moved += file_delta[k];
       }
-      if (moves->count > 0)
+      if (good_dir) {
+        attack_mask[sq] &= ~(1ULL << sq_moved - dir[k]);
         pop_back_vector(moves, NULL); // Last one is irelevant
+      }
     }
 
     // Vector to keep occupancy + attack combinations
@@ -342,6 +357,7 @@ void generate_rook_bitboards() {
   }
   for (int i = 0; i < 64; i++) {
     pthread_join(threads[i], NULL);
+    fwrite(&attack_mask[i], sizeof(BitBoard), 1, out);
     fwrite(&magic_nums[i], sizeof(uint64_t), 1, out);
     fwrite(&nr_bits[i], sizeof(uint8_t), 1, out);
 
