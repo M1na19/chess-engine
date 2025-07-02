@@ -2,11 +2,11 @@
 #include "engine/engine.h"
 #include "pthread.h"
 #include "stdatomic.h"
+#include <semaphore.h>
 #include <unistd.h>
 
-extern int THREADS_PER_SQUARE;
-#define NR_MAX_TRIES ((int)1e8)
-
+extern int THREADS;
+extern sem_t semaphore;
 typedef struct occupancy_attack {
   BitBoard occupancy;
   BitBoard attack;
@@ -18,8 +18,7 @@ typedef struct {
 
   atomic_ullong *magic_number_found;
   BitBoard *result_table;
-  pthread_mutex_t *result_mutex;
 } MagicThreadArgs;
-
+void handle_sigint(int sig);
 void generate_bishop_bitboards();
 void generate_rook_bitboards();
