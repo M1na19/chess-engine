@@ -12,10 +12,4 @@ int main() {
   load_knight_bb();
   load_bishop_bb();
   load_rook_bb();
-
-  ChessPosition cp = alloca(sizeof(struct chess_position));
-  init_position(cp);
-  // print_position(cp);
-
-  printf("%d", perft(cp, 6));
 }

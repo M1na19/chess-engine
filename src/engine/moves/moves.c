@@ -7,11 +7,11 @@
 #include <string.h>
 
 unsigned char is_square_attacked(ChessPosition cp, Color by, uint8_t position) {
-  BitBoard location = 1ULL < position;
+  BitBoard location = 1ULL << position;
   // 1. Check if pawns attack
   BitBoard pawns = cp->board[by][PAWN];
   BitBoard capture;
-  if (cp->side_to_move == WHITE) {
+  if (by == WHITE) {
     BitBoard non_edge_pawns = pawns & 0x7e7e7e7e7e7e7e7e;
     BitBoard left_pawns = pawns & 0x101010101010101;
     BitBoard right_pawns = pawns & 0x8080808080808080;
@@ -94,21 +94,50 @@ PieceType piece_from_promotion(PromotionType pt) {
   }
 }
 
-void apply_move(ChessPosition cp, Move m) {
+UndoMove apply_move(ChessPosition cp, Move m) {
+  UndoMove u;
+  u.castle_laws[WHITE] = cp->castle_laws[WHITE];
+  u.castle_laws[BLACK] = cp->castle_laws[BLACK];
+  u.prev_en_passant = cp->en_passant;
+  u.prev_half_move = cp->half_move_count;
+
   switch (m.move_type) {
   case CAPTURE: {
+    u.changes[0] = (struct undo_piece){.from.sq = m.capture.to,
+                                       .to = m.capture.from,
+                                       .is_promotion = 0,
+                                       .on_table = 1};
+    u.nr_changes = 0;
+
     PieceType moved = cp->piece_board[m.capture.from].piece;
     PieceType captured = cp->piece_board[m.capture.to].piece;
+
     // Remove previous location
     remove_piece(cp, cp->side_to_move, moved, m.capture.from);
 
     if (captured != NONE) {
       // Remove piece from board
       remove_piece(cp, ENEMY_COLOR(cp->side_to_move), captured, m.capture.to);
+      u.changes[1] = (struct undo_piece){.from.piece = captured,
+                                         .to = m.capture.to,
+                                         .on_table = 0,
+                                         .is_promotion = 0};
+      u.nr_changes = 1;
+    } else if (moved == PAWN && m.capture.is_en_passant == 1) {
+      uint8_t target = m.capture.to + (cp->side_to_move == WHITE ? -8 : 8);
+      remove_piece(cp, ENEMY_COLOR(cp->side_to_move), PAWN, target);
+      u.changes[1] = (struct undo_piece){
+          .from.piece = PAWN, .to = target, .on_table = 0, .is_promotion = 0};
+      u.nr_changes = 1;
     }
-
     // Add new location
     add_piece(cp, cp->side_to_move, moved, m.capture.to);
+
+    if (captured != NONE || moved == PAWN) {
+      cp->half_move_count = 0;
+    } else {
+      cp->half_move_count++;
+    }
 
     // Update castling rights
     if ((moved == ROOK &&
@@ -122,14 +151,21 @@ void apply_move(ChessPosition cp, Move m) {
 
     // Update en_passant
     if (moved == PAWN && abs(m.capture.to - m.capture.from) == 16) {
-      cp->en_passant_square =
-          1ULL << ((cp->side_to_move == WHITE ? 8 : -8) + m.capture.from);
+      cp->en_passant.en_passant_status = EN_PASSANT_POSSIBLE;
+      cp->en_passant.en_passant_square =
+          (cp->side_to_move == WHITE ? 8 : -8) + m.capture.from;
     } else {
-      cp->en_passant_square = 0ULL;
+      cp->en_passant.en_passant_status = EN_PASSANT_NOT_POSSIBLE;
     }
     break;
   }
   case PROMOTION: {
+    u.changes[0] = (struct undo_piece){.from.sq = m.capture.to,
+                                       .to = m.capture.from,
+                                       .is_promotion = 1,
+                                       .on_table = 1};
+    u.nr_changes = 0;
+
     PieceType moved = cp->piece_board[m.promotion.from].piece;
     PieceType captured = cp->piece_board[m.promotion.to].piece;
     PromotionType promoted = m.promotion.promotion_type;
@@ -140,43 +176,103 @@ void apply_move(ChessPosition cp, Move m) {
     if (captured != NONE) {
       // Remove piece from board
       remove_piece(cp, ENEMY_COLOR(cp->side_to_move), captured, m.promotion.to);
+
+      u.changes[1] = (struct undo_piece){.from.piece = captured,
+                                         .to = m.capture.to,
+                                         .is_promotion = 0,
+                                         .on_table = 0};
+      u.nr_changes = 1;
     }
 
     // Add promoted piece
     add_piece(cp, cp->side_to_move, piece_from_promotion(promoted),
               m.promotion.to);
+    cp->half_move_count = 0;
     break;
   }
   case CASTLE: {
+    cp->half_move_count++;
+    u.nr_changes = 1;
+
     switch (m.castle) {
     case CASTLE_KING: {
-      // Remove king
-      remove_piece(cp, cp->side_to_move, KING, 4);
+      if (cp->side_to_move == WHITE) {
+        // Remove king
+        remove_piece(cp, cp->side_to_move, KING, 4);
 
-      // Add king
-      add_piece(cp, cp->side_to_move, KING, 6);
+        // Add king
+        add_piece(cp, cp->side_to_move, KING, 6);
 
-      // Remove rook
-      remove_piece(cp, cp->side_to_move, ROOK, 7);
+        u.changes[0] = (struct undo_piece){
+            .from.sq = 6, .to = 4, .on_table = 1, .is_promotion = 0};
 
-      // Add rook
-      add_piece(cp, cp->side_to_move, ROOK, 5);
+        // Remove rook
+        remove_piece(cp, cp->side_to_move, ROOK, 7);
 
+        // Add rook
+        add_piece(cp, cp->side_to_move, ROOK, 5);
+
+        u.changes[1] = (struct undo_piece){
+            .from.sq = 5, .to = 7, .on_table = 1, .is_promotion = 0};
+      } else {
+        // Remove king
+        remove_piece(cp, cp->side_to_move, KING, 60);
+
+        // Add king
+        add_piece(cp, cp->side_to_move, KING, 62);
+
+        u.changes[0] = (struct undo_piece){
+            .from.sq = 62, .to = 60, .on_table = 1, .is_promotion = 0};
+
+        // Remove rook
+        remove_piece(cp, cp->side_to_move, ROOK, 63);
+
+        // Add rook
+        add_piece(cp, cp->side_to_move, ROOK, 61);
+
+        u.changes[1] = (struct undo_piece){
+            .from.sq = 61, .to = 63, .on_table = 1, .is_promotion = 0};
+      }
       break;
     }
     case CASTLE_QUEEN: {
-      // Remove king
-      remove_piece(cp, cp->side_to_move, KING, 4);
+      if (cp->side_to_move == WHITE) {
+        // Remove king
+        remove_piece(cp, cp->side_to_move, KING, 4);
 
-      // Add king
-      add_piece(cp, cp->side_to_move, KING, 2);
+        // Add king
+        add_piece(cp, cp->side_to_move, KING, 2);
 
-      // Remove rook
-      remove_piece(cp, cp->side_to_move, ROOK, 0);
+        u.changes[0] = (struct undo_piece){
+            .from.sq = 2, .to = 4, .on_table = 1, .is_promotion = 0};
 
-      // Add rook
-      add_piece(cp, cp->side_to_move, ROOK, 3);
+        // Remove rook
+        remove_piece(cp, cp->side_to_move, ROOK, 0);
 
+        // Add rook
+        add_piece(cp, cp->side_to_move, ROOK, 3);
+
+        u.changes[1] = (struct undo_piece){
+            .from.sq = 3, .to = 0, .on_table = 1, .is_promotion = 0};
+      } else {
+        // Remove king
+        remove_piece(cp, cp->side_to_move, KING, 60);
+
+        // Add king
+        add_piece(cp, cp->side_to_move, KING, 58);
+
+        u.changes[0] = (struct undo_piece){
+            .from.sq = 58, .to = 60, .on_table = 1, .is_promotion = 0};
+
+        // Remove rook
+        remove_piece(cp, cp->side_to_move, ROOK, 56);
+
+        // Add rook
+        add_piece(cp, cp->side_to_move, ROOK, 59);
+
+        u.changes[1] = (struct undo_piece){
+            .from.sq = 59, .to = 56, .on_table = 1, .is_promotion = 0};
+      }
       break;
     }
     }
@@ -187,9 +283,45 @@ void apply_move(ChessPosition cp, Move m) {
     exit(-1);
   }
   }
+  if (cp->side_to_move == BLACK) {
+    cp->move_count++;
+  }
   cp->side_to_move = ENEMY_COLOR(cp->side_to_move);
+  return u;
 }
+void undo_move(ChessPosition cp, UndoMove u) {
+  if (cp->side_to_move == WHITE) {
+    cp->move_count--;
+  }
+  cp->side_to_move = ENEMY_COLOR(cp->side_to_move);
+  cp->half_move_count = u.prev_half_move;
+  cp->en_passant = u.prev_en_passant;
+  cp->castle_laws[WHITE] = u.castle_laws[WHITE];
+  cp->castle_laws[BLACK] = u.castle_laws[BLACK];
 
+  // Apply changes
+  for (int i = 0; i <= u.nr_changes; i++) {
+    struct undo_piece up = u.changes[i];
+    if (up.is_promotion) {
+      // Remove promoted piece
+      remove_piece(cp, cp->side_to_move, cp->piece_board[up.from.sq].piece,
+                   up.from.sq);
+
+      // Add pawn that promoted
+      add_piece(cp, cp->side_to_move, PAWN, up.to);
+    } else {
+      if (up.on_table == 0) {
+        // Add piece that was captured
+        add_piece(cp, ENEMY_COLOR(cp->side_to_move), up.from.piece, up.to);
+      } else {
+        PieceType pt = cp->piece_board[up.from.sq].piece;
+        // Move piece back
+        remove_piece(cp, cp->side_to_move, pt, up.from.sq);
+        add_piece(cp, cp->side_to_move, pt, up.to);
+      }
+    }
+  }
+}
 void gen_pawn_moves(ChessPosition cp, Vector v, BitBoard all_pieces,
                     BitBoard enemy_pieces) {
   BitBoard pawns = cp->board[cp->side_to_move][PAWN];
@@ -216,7 +348,7 @@ void gen_pawn_moves(ChessPosition cp, Vector v, BitBoard all_pieces,
     tmp &= tmp - 1; // Clear lowest bit
 
     // Is promotion
-    if (to <= 63 && to >= 54) {
+    if (cp->side_to_move == WHITE ? to <= 63 && to >= 54 : to >= 0 && to <= 7) {
       // No none promotion
       for (PromotionType pt = 0; pt < NR_PROMOTION_TYPE; pt++) {
         push_vector(v,
@@ -252,18 +384,30 @@ void gen_pawn_moves(ChessPosition cp, Vector v, BitBoard all_pieces,
     BitBoard non_edge_pawns = pawns & 0x7e7e7e7e7e7e7e7e;
     BitBoard left_pawns = pawns & 0x101010101010101;
     BitBoard right_pawns = pawns & 0x8080808080808080;
-    capture_right = (non_edge_pawns << 9 | left_pawns << 9) &
-                    (enemy_pieces | cp->en_passant_square);
-    capture_left = (non_edge_pawns << 7 | right_pawns << 7) &
-                   (enemy_pieces | cp->en_passant_square);
+    capture_right =
+        (non_edge_pawns << 9 | left_pawns << 9) &
+        (enemy_pieces | (cp->en_passant.en_passant_status == EN_PASSANT_POSSIBLE
+                             ? 1ULL << cp->en_passant.en_passant_square
+                             : 0));
+    capture_left =
+        (non_edge_pawns << 7 | right_pawns << 7) &
+        (enemy_pieces | (cp->en_passant.en_passant_status == EN_PASSANT_POSSIBLE
+                             ? 1ULL << cp->en_passant.en_passant_square
+                             : 0));
   } else {
     BitBoard non_edge_pawns = pawns & 0x7e7e7e7e7e7e7e7e;
     BitBoard left_pawns = pawns & 0x8080808080808080;
     BitBoard right_pawns = pawns & 0x101010101010101;
-    capture_right = (non_edge_pawns >> 9 | left_pawns >> 9) &
-                    (enemy_pieces | cp->en_passant_square);
-    capture_left = (non_edge_pawns >> 7 | right_pawns >> 7) &
-                   (enemy_pieces | cp->en_passant_square);
+    capture_right =
+        (non_edge_pawns >> 9 | left_pawns >> 9) &
+        (enemy_pieces | (cp->en_passant.en_passant_status == EN_PASSANT_POSSIBLE
+                             ? 1ULL << cp->en_passant.en_passant_square
+                             : 0));
+    capture_left =
+        (non_edge_pawns >> 7 | right_pawns >> 7) &
+        (enemy_pieces | (cp->en_passant.en_passant_status == EN_PASSANT_POSSIBLE
+                             ? 1ULL << cp->en_passant.en_passant_square
+                             : 0));
   }
   tmp = capture_left;
   while (tmp) {
@@ -272,7 +416,7 @@ void gen_pawn_moves(ChessPosition cp, Vector v, BitBoard all_pieces,
     tmp &= tmp - 1; // Clear lowest bit
 
     // Is promotion
-    if (to <= 63 && to >= 54) {
+    if (cp->side_to_move == WHITE ? to <= 63 && to >= 54 : to >= 0 && to <= 7) {
       // No none promotion
       for (PromotionType pt = 0; pt < NR_PROMOTION_TYPE; pt++) {
         push_vector(v,
@@ -280,11 +424,22 @@ void gen_pawn_moves(ChessPosition cp, Vector v, BitBoard all_pieces,
                             .promotion = (Promotion){
                                 .from = from, .to = to, .promotion_type = pt}});
       }
+    }
+    // Is en_passant
+    else if (cp->en_passant.en_passant_status == EN_PASSANT_POSSIBLE &&
+             to == cp->en_passant.en_passant_square) {
+      push_vector(v, &(Move){.move_type = CAPTURE,
+                             .capture = (Capture){
+                                 .from = from,
+                                 .to = to,
+                                 .is_en_passant = 1,
+                             }});
     } else {
       push_vector(v, &(Move){.move_type = CAPTURE,
                              .capture = (Capture){
                                  .from = from,
                                  .to = to,
+
                              }});
     }
   }
@@ -296,7 +451,7 @@ void gen_pawn_moves(ChessPosition cp, Vector v, BitBoard all_pieces,
     tmp &= tmp - 1; // Clear lowest bit
 
     // Is promotion
-    if (to <= 63 && to >= 54) {
+    if (cp->side_to_move == WHITE ? to <= 63 && to >= 54 : to >= 0 && to <= 7) {
       // No none promotion
       for (PromotionType pt = 0; pt < NR_PROMOTION_TYPE; pt++) {
         push_vector(v,
@@ -304,6 +459,16 @@ void gen_pawn_moves(ChessPosition cp, Vector v, BitBoard all_pieces,
                             .promotion = (Promotion){
                                 .from = from, .to = to, .promotion_type = pt}});
       }
+    }
+    // Is en_passant
+    else if (cp->en_passant.en_passant_status == EN_PASSANT_POSSIBLE &&
+             to == cp->en_passant.en_passant_square) {
+      push_vector(v, &(Move){.move_type = CAPTURE,
+                             .capture = (Capture){
+                                 .from = from,
+                                 .to = to,
+                                 .is_en_passant = 1,
+                             }});
     } else {
       push_vector(v, &(Move){.move_type = CAPTURE,
                              .capture = (Capture){
@@ -483,40 +648,41 @@ void gen_legal_moves(ChessPosition cp, Vector v) {
   init_vector(legal, sizeof(Move), v->count);
 
   for (int i = 0; i < v->count; i++) {
-    ChessPosition next = alloca(sizeof(struct chess_position));
-    memcpy(next, cp, sizeof(struct chess_position));
-
-    apply_move(next, VALUE(Move, get_vector(v, i)));
+    UndoMove um = apply_move(cp, VALUE(Move, get_vector(v, i)));
     if (!is_square_attacked(
-            next, next->side_to_move,
-            __builtin_ctzll(next->board[cp->side_to_move][KING]))) {
+            cp, cp->side_to_move,
+            __builtin_ctzll(cp->board[ENEMY_COLOR(cp->side_to_move)][KING]))) {
       push_vector(legal, get_vector(v, i));
     }
+    undo_move(cp, um);
   }
-  free(v->data);
-  *v = *legal;
+  free_vector(v);
+  memcpy(v, legal, sizeof(struct vector));
 }
-int perft(ChessPosition cp, int depth) {
+uint64_t perft(ChessPosition cp, int max_depth, int depth, char **out) {
   Vector moves = alloca(sizeof(struct vector));
   init_vector(moves, sizeof(Move), 256);
 
   gen_legal_moves(cp, moves);
-  if (depth == 1) {
-    // printf("\nEnd of line\n");
+  if (depth == max_depth - 1) {
     int nr = moves->count;
+    for (int i = 0; i < moves->count; i++) {
+      move_to_str(cp, VALUE(Move, get_vector(moves, i)), out[depth]);
+      // for (int i = 0; i < max_depth; i++)
+      //   printf("%s ", out[i]);
+      // printf("\n");
+    }
     free_vector(moves);
     return nr;
   }
-
   uint64_t total = 0;
   for (int i = 0; i < moves->count; i++) {
-    ChessPosition next = alloca(sizeof(struct chess_position));
-    memcpy(next, cp, sizeof(struct chess_position));
-    // TODO implement undo logic
-    apply_move(next, VALUE(Move, get_vector(moves, i)));
+    move_to_str(cp, VALUE(Move, get_vector(moves, i)), out[depth]);
 
-    // print_position(next);
-    total += perft(next, depth - 1);
+    UndoMove um = apply_move(cp, VALUE(Move, get_vector(moves, i)));
+    total += perft(cp, max_depth, depth + 1, out);
+
+    undo_move(cp, um);
   }
 
   free_vector(moves);

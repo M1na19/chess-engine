@@ -2,13 +2,13 @@
 #include <stdio.h>
 
 typedef struct vector {
-    void *data;
-    size_t data_size;
-    size_t count;
-    size_t capacity;
+  void *data;
+  size_t data_size;
+  size_t count;
+  size_t capacity;
 } *Vector;
 
-#define VALUE(type, expr) (*(type*)(expr))
+#define VALUE(type, expr) (*(type *)(expr))
 
 void init_vector(Vector v, size_t data_size, size_t init_capacity);
 

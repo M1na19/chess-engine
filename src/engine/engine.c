@@ -77,7 +77,7 @@ void init_position(ChessPosition cp) {
   cp->side_to_move = WHITE;
 
   // No en passant target square at start
-  cp->en_passant_square = 0ULL;
+  cp->en_passant.en_passant_status = EN_PASSANT_NOT_POSSIBLE;
 
   // Clocks
   cp->half_move_count = 0;
@@ -172,9 +172,10 @@ void init_position_from_fen(ChessPosition cp, const char *fen) {
   if (*fen != '-') {
     int file = fen[0] - 'a';
     int rank = fen[1] - '1';
-    cp->en_passant_square = 1ULL << (rank * 8 + file);
+    cp->en_passant.en_passant_status = EN_PASSANT_POSSIBLE;
+    cp->en_passant.en_passant_square = rank * 8 + file;
   } else {
-    cp->en_passant_square = 0ULL;
+    cp->en_passant.en_passant_status = EN_PASSANT_NOT_POSSIBLE;
   }
   while (*fen && *fen != ' ')
     fen++;
