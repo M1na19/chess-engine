@@ -16,7 +16,7 @@ int main() {
   ChessPosition cp = alloca(sizeof(struct chess_position));
   init_position(cp);
 
-  int depth = 7;
+  int depth = 6;
   char **out = malloc(sizeof(char *) * depth);
   for (int i = 0; i < depth; i++)
     out[i] = malloc(sizeof(char) * 6);

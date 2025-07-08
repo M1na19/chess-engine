@@ -666,19 +666,11 @@ uint64_t perft(ChessPosition cp, int max_depth, int depth, char **out) {
   gen_legal_moves(cp, moves);
   if (depth == max_depth - 1) {
     int nr = moves->count;
-    for (int i = 0; i < moves->count; i++) {
-      move_to_str(cp, VALUE(Move, get_vector(moves, i)), out[depth]);
-      // for (int i = 0; i < max_depth; i++)
-      //   printf("%s ", out[i]);
-      // printf("\n");
-    }
     free_vector(moves);
     return nr;
   }
   uint64_t total = 0;
   for (int i = 0; i < moves->count; i++) {
-    move_to_str(cp, VALUE(Move, get_vector(moves, i)), out[depth]);
-
     UndoMove um = apply_move(cp, VALUE(Move, get_vector(moves, i)));
     total += perft(cp, max_depth, depth + 1, out);
 
