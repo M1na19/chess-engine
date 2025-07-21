@@ -39,3 +39,6 @@ tags
 
 # Logs
 *.log
+
+# Neural network
+*.nn

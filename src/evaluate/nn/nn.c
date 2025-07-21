@@ -260,3 +260,55 @@ void train_batch(Network nn, float **inputs, float **expected_outputs,
   free(weight_grads);
   free(bias_grads);
 }
+void save_nn_to_file(Network nn, FILE *f) {
+  if (!f)
+    return;
+
+  fwrite(&nn.num_layers, sizeof(uint32_t), 1, f);
+
+  for (uint32_t l = 0; l < nn.num_layers; l++) {
+    Layer *layer = &nn.layers[l];
+    fwrite(&layer->input_size, sizeof(uint32_t), 1, f);
+    fwrite(&layer->output_size, sizeof(uint32_t), 1, f);
+
+    // Weights
+    for (uint32_t i = 0; i < layer->input_size; i++) {
+      fwrite(layer->weights[i], sizeof(float), layer->output_size, f);
+    }
+
+    // Biases
+    fwrite(layer->biases, sizeof(float), layer->output_size, f);
+  }
+
+  fclose(f);
+}
+Network load_nn_from_file(FILE *f) {
+  if (!f) {
+    fprintf(stderr, "Error: file is NULL\n");
+    exit(1);
+  }
+
+  Network nn;
+  fread(&nn.num_layers, sizeof(uint32_t), 1, f);
+  nn.layers = malloc(sizeof(Layer) * nn.num_layers);
+  nn.activation = tanhf;
+  nn.activation_derivative = tanhf_derivative;
+
+  for (uint32_t l = 0; l < nn.num_layers; l++) {
+    Layer *layer = &nn.layers[l];
+    fread(&layer->input_size, sizeof(uint32_t), 1, f);
+    fread(&layer->output_size, sizeof(uint32_t), 1, f);
+
+    layer->weights = malloc(sizeof(float *) * layer->input_size);
+    for (uint32_t i = 0; i < layer->input_size; i++) {
+      layer->weights[i] = malloc(sizeof(float) * layer->output_size);
+      fread(layer->weights[i], sizeof(float), layer->output_size, f);
+    }
+
+    layer->biases = malloc(sizeof(float) * layer->output_size);
+    fread(layer->biases, sizeof(float), layer->output_size, f);
+  }
+
+  fclose(f);
+  return nn;
+}

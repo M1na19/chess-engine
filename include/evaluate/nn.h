@@ -18,3 +18,5 @@ Network init_nn(uint32_t input, uint32_t output, uint32_t hidden,
 float *forward_pass(Network nn, float *input);
 void train_batch(Network nn, float **inputs, float **expected_outputs,
                  uint32_t batch_size, float learning_rate);
+void save_nn_to_file(Network nn, FILE *f);
+Network load_nn_from_file(FILE *f);
