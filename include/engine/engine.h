@@ -23,7 +23,7 @@ void init_position(ChessPosition cp);
 void init_position_from_fen(ChessPosition cp, const char *fen);
 
 UndoMove apply_move(ChessPosition cp, Move m);
+void undo_move(ChessPosition cp, UndoMove u);
 
 void gen_legal_moves(ChessPosition cp, Vector v);
 uint64_t perft(ChessPosition cp, int max_depth, int depth, char **out);
-void undo_move(ChessPosition cp, UndoMove u);

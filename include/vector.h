@@ -14,8 +14,12 @@ void init_vector(Vector v, size_t data_size, size_t init_capacity);
 
 void *get_vector(Vector v, int idx);
 
+void set_vector(Vector v, int idx, void *data);
+
 void push_vector(Vector v, void *to_add);
 
 void pop_back_vector(Vector v, void *get_data);
+
+void resize(Vector v, size_t new_cap);
 
 void free_vector(Vector v);

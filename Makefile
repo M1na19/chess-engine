@@ -38,7 +38,7 @@ build/$(TARGET_PRECOMPUTE): $(OBJS_PRECOMPUTE)
 
 
 # Tests
-SRCS_TEST := $(shell find src/engine src/vector src/error tests -name '*.c') src/precompute/load.c
+SRCS_TEST := $(shell find src/engine src/vector src/error src/evaluate tests -name '*.c') src/precompute/load.c
 
 OBJS_TEST := $(SRCS_TEST:.c=.o)
 
