@@ -24,4 +24,4 @@ jobs:
           cd ../..
 
       - name: Run perft tests
-        run: python src/engine/simple_test.py
+        run: cd src/engine && python simple_test.py
