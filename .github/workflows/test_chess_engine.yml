@@ -23,4 +23,4 @@ jobs:
           cd ../..
 
       - name: Run perft tests (cargo)
-        run: cargo test engine --release -- --nocapture
+        run: cargo test engine --release
