@@ -1,0 +1,27 @@
+name: Perft tests
+
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  perft:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build
+        run: |
+          cd src/engine
+          make chess
+          cd ../..
+
+      - name: Run perft tests
+        run: python src/engine/simple_test.py
