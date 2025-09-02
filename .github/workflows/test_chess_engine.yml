@@ -13,9 +13,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Build
         run: |
@@ -23,5 +22,5 @@ jobs:
           make chess
           cd ../..
 
-      - name: Run perft tests
-        run: cd src/engine && python simple_test.py
+      - name: Run perft tests (cargo)
+        run: cargo test engine --release -- --nocapture
