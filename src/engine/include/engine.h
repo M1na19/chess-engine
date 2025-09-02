@@ -17,13 +17,13 @@ typedef struct chess_position {
   EnPassant en_passant;
   unsigned int half_move_count : 6;
   uint32_t move_count : 13;
-} *ChessPosition;
+} ChessPosition;
 
-void init_position(ChessPosition cp);
-void init_position_from_fen(ChessPosition cp, const char *fen);
+ChessPosition init_position();
+ChessPosition init_position_from_fen(const char *fen);
 
-UndoMove apply_move(ChessPosition cp, Move m);
+UndoMove apply_move(ChessPosition *cp, Move m);
 
 VectorMove gen_legal_moves(ChessPosition cp);
 uint64_t perft(ChessPosition cp, int max_depth, int depth);
-void undo_move(ChessPosition cp, UndoMove u);
+void undo_move(ChessPosition *cp, UndoMove u);

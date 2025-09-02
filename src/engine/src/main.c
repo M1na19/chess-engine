@@ -1,6 +1,7 @@
 #include "debug.h"
 #include "precompute/load.h"
 #include "stdlib.h"
+#include "utils.h"
 #include "vector.h"
 #include <alloca.h>
 
@@ -11,11 +12,10 @@ int main() {
   load_bishop_bb();
   load_rook_bb();
 
-  ChessPosition cp = alloca(sizeof(struct chess_position));
-  char *fen = malloc(sizeof(char) * 256);
   int depth;
+  char *fen = f_malloc(sizeof(char) * 256);
   scanf("%[^\n] %d", fen, &depth);
-  init_position_from_fen(cp, fen);
+  ChessPosition cp = init_position_from_fen(fen);
 
   printf("%lld", perft(cp, depth, 0));
 }

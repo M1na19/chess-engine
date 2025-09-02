@@ -11,9 +11,8 @@ void print_position(const ChessPosition cp) {
     printf("%d ", rank + 1);
     for (int file = 0; file < 8; file++) {
       const int sq = rank * 8 + file;
-      printf(
-          "%c ",
-          piece_symbols[cp->piece_board[sq].color][cp->piece_board[sq].piece]);
+      printf("%c ",
+             piece_symbols[cp.piece_board[sq].color][cp.piece_board[sq].piece]);
     }
     printf("\n");
   }

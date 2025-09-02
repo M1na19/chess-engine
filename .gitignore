@@ -1,6 +1,7 @@
 # Do not include computed files
 *.bb
 # Build files
+src/engine/build/*
 /build/
 /bin/
 /obj/
@@ -39,3 +40,5 @@ tags
 
 # Logs
 *.log
+
+target/*

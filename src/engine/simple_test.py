@@ -4,7 +4,7 @@ import subprocess
 import sys
 import time
 
-ENGINE_CMD = ['./build/chess']   # adjust if needed
+ENGINE_CMD = ['./build/chess']
 TESTS_DIR = 'tests'
 TIMEOUT_SEC = 30
 
