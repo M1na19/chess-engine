@@ -1,5 +1,4 @@
-# Do not include computed files
-*.bb
+
 # Build files
 src/engine/build/*
 /build/
