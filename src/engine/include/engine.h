@@ -24,6 +24,6 @@ ChessPosition init_position_from_fen(const char *fen);
 
 UndoMove apply_move(ChessPosition *cp, Move m);
 
-VectorMove gen_legal_moves(ChessPosition cp);
-uint64_t perft(ChessPosition cp, int max_depth, int depth);
+void gen_legal_moves(ChessPosition *cp, VectorMove *v);
+uint64_t perft(ChessPosition *cp, int max_depth, int depth);
 void undo_move(ChessPosition *cp, UndoMove u);

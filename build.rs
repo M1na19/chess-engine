@@ -14,8 +14,6 @@ fn main() {
         .flag_if_supported("-Wall")
         .flag_if_supported("-Wextra")
         .files([
-            "src/engine/src/utils/utils.c",
-            "src/engine/src/vector/vector.c",
             "src/engine/src/debug/debug.c",
             "src/engine/src/moves/moves.c",
             "src/engine/src/precompute/load.c",

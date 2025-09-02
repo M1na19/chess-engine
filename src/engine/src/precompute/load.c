@@ -11,7 +11,7 @@ MagicVec rook_look_up_table[64];
 
 BitBoard get_attack_magic_vec(MagicVec mv, BitBoard occ) {
   int idx = ((occ & mv.attack_mask) * mv.magic_num) >> (64 - mv.nr_bits);
-  return VALUE(BitBoard, vector_get(mv.val, idx));
+  return VALUE(BitBoard, vector_get(&mv.val, idx));
 }
 
 void load_knight_bb() {

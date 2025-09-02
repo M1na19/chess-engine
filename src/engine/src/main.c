@@ -12,10 +12,7 @@ int main() {
   load_bishop_bb();
   load_rook_bb();
 
-  int depth;
-  char *fen = f_malloc(sizeof(char) * 256);
-  scanf("%[^\n] %d", fen, &depth);
-  ChessPosition cp = init_position_from_fen(fen);
+  ChessPosition cp = init_position();
 
-  printf("%lld", perft(cp, depth, 0));
+  printf("%lld", perft(&cp, 6, 0));
 }

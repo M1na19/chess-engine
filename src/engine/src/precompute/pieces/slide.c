@@ -55,7 +55,7 @@ void *magic_worker(void *arg) {
     // Check magic numbers against values
     uint8_t fail = 0;
     for (size_t i = 0; i < values.count; i++) {
-      OccupancyAttack oa = VALUE(OccupancyAttack, vector_get(values, i));
+      OccupancyAttack oa = VALUE(OccupancyAttack, vector_get(&values, i));
       uint64_t key = (oa.occupancy * m) >> (64 - nr_bits);
 
       if (used[key] == 0) {
@@ -132,7 +132,7 @@ void generate_bishop_bitboards() {
       // write combination to bitboard
       for (int i = 0; comb_c; i++, comb_c >>= 1) {
         if (comb_c & 1) {
-          oc |= 1ULL << VALUE(uint8_t, vector_get(moves, i));
+          oc |= 1ULL << VALUE(uint8_t, vector_get(&moves, i));
         }
       }
 
@@ -175,7 +175,7 @@ void generate_bishop_bitboards() {
   atomic_char *nr_bits = f_malloc(64 * sizeof(atomic_char));
   for (uint8_t sq = 0; sq < 64; sq++) {
 
-    Vector values = VALUE(Vector, vector_get(data, sq));
+    Vector values = VALUE(Vector, vector_get(&data, sq));
 
     // Calculate minimum number of bits
     nr_bits[sq] = 16;
@@ -278,7 +278,7 @@ void generate_rook_bitboards() {
       // write combination to bitboard
       for (int i = 0; comb_c; i++, comb_c >>= 1) {
         if (comb_c & 1) {
-          oc |= 1ULL << VALUE(uint8_t, vector_get(moves, i));
+          oc |= 1ULL << VALUE(uint8_t, vector_get(&moves, i));
         }
       }
 
@@ -321,7 +321,7 @@ void generate_rook_bitboards() {
   atomic_char *nr_bits = f_malloc(64 * sizeof(atomic_char));
   for (uint8_t sq = 0; sq < 64; sq++) {
 
-    Vector values = VALUE(Vector, vector_get(data, sq));
+    Vector values = VALUE(Vector, vector_get(&data, sq));
 
     // Calculate minimum number of bits
     nr_bits[sq] = 14;

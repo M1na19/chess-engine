@@ -32,7 +32,7 @@ static inline void to_position(uint8_t square, char *out) {
   out[2] = '\0';
 }
 
-char *move_to_str(ChessPosition cp, Move m, char *out) {
+char *move_to_str(Move m, char *out) {
   char from[3], to[3];
 
   switch (m.move_type) {
