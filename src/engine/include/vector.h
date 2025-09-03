@@ -22,7 +22,6 @@ static inline Vector vector_init(size_t data_size, size_t init_capacity) {
   v.data = f_malloc(data_size * init_capacity);
   return v;
 }
-
 static inline void *vector_get(Vector *v, int idx) {
   return ((uint8_t *)v->data) + (idx * v->data_size);
 }

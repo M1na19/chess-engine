@@ -1,37 +1,18 @@
-use std::time::Instant;
+use crate::engine::wrapper::{load_required_bitboards, ChessPosition};
 
-include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
-
+mod engine;
 fn main() {
-    let res;
-    let depth=6;
-    unsafe {
-        load_king_bb();
-        load_knight_bb();
-        load_bishop_bb();
-        load_rook_bb();
-
-        let start = Instant::now();
-        let mut cp: ChessPosition = init_position();
-        res = perft(&mut cp as *mut ChessPosition, depth, 0);
-        let duration = start.elapsed();
-        println!("perft({}) = {} in {} ms", depth, res, duration.as_millis());
-    }
-    
+    load_required_bitboards();
 }
 #[cfg(test)]
 mod tests{
-    use std::{ffi::CString, fs::{self, File}, io::{BufRead, BufReader, Error}, time::Instant};
+    use std::{fs::{self, File}, io::{BufRead, BufReader, Error}, time::Instant};
 
-    use super::*;
+    use crate::engine::wrapper::{load_required_bitboards, ChessPosition};
+
     #[test]
     fn engine()->Result<(), Error>{
-        unsafe {
-            load_king_bb();
-            load_knight_bb();
-            load_bishop_bb();
-            load_rook_bb();
-        }
+        load_required_bitboards();
         for entry in fs::read_dir("tests/perft")?{
             let entry=entry?;
             let file=File::open(entry.path())?;
@@ -45,17 +26,14 @@ mod tests{
                 let config=config.trim();
                 let (depth, expected)=config.split_once(' ').unwrap();
 
-                let fen_c=CString::new(fen).unwrap();
                 let depth:u32=depth[1..].parse().unwrap();
                 let expected:u64=expected.parse().unwrap();
 
-                let res;
+                
 
                 let start = Instant::now();
-                unsafe {
-                    let mut cp: ChessPosition = init_position_from_fen(fen_c.as_ptr());
-                    res = perft(&mut cp as *mut ChessPosition, depth as i32, 0);
-                }
+                let mut cp=ChessPosition::new_from_fen(fen);
+                let res=cp.perft(depth);
                 let duration = start.elapsed();
 
                 assert_eq!(res, expected, "perft mismatch for FEN: {fen} at depth {depth}");

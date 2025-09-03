@@ -2,7 +2,7 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
-ChessPosition init_position() {
+ChessPosition engine_init_position() {
   ChessPosition cp;
   // Clear everything
   memset(&cp, 0, sizeof(cp));
@@ -85,7 +85,7 @@ ChessPosition init_position() {
   cp.move_count = 1;
   return cp;
 }
-ChessPosition init_position_from_fen(const char *fen) {
+ChessPosition engine_init_position_from_fen(const char *fen) {
   ChessPosition cp;
   // Clear everything
   memset(&cp, 0, sizeof(cp));

@@ -6,8 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-static inline unsigned char is_square_attacked(ChessPosition *cp, Color by,
-                                               uint8_t position) {
+unsigned char engine_is_square_attacked(ChessPosition *cp, Color by,
+                                        uint8_t position) {
   BitBoard location = 1ULL << position;
   // 1. Check if pawns attack
   BitBoard pawns = cp->board[by][PAWN];
@@ -97,7 +97,7 @@ static inline PieceType piece_from_promotion(PromotionType pt) {
   }
 }
 
-UndoMove apply_move(ChessPosition *cp, Move m) {
+UndoMove engine_apply_move(ChessPosition *cp, Move m) {
   UndoMove u;
   u.castle_laws[WHITE] = cp->castle_laws[WHITE];
   u.castle_laws[BLACK] = cp->castle_laws[BLACK];
@@ -305,7 +305,7 @@ UndoMove apply_move(ChessPosition *cp, Move m) {
   cp->side_to_move = ENEMY_COLOR(cp->side_to_move);
   return u;
 }
-void undo_move(ChessPosition *cp, UndoMove u) {
+void engine_undo_move(ChessPosition *cp, UndoMove u) {
   if (cp->side_to_move == WHITE) {
     cp->move_count--;
   }
@@ -516,17 +516,17 @@ static inline void gen_king_moves(ChessPosition *cp, VectorMove *v,
     if (cp->side_to_move == WHITE) {
       // Check empty space and rook is in position
       if ((all_pieces & 0x60) == 0 && (cp->board[WHITE][ROOK] & 0x80) != 0)
-        if (is_square_attacked(cp, BLACK, 4) == 0 &&
-            is_square_attacked(cp, BLACK, 5) == 0 &&
-            is_square_attacked(cp, BLACK, 6) == 0)
+        if (engine_is_square_attacked(cp, BLACK, 4) == 0 &&
+            engine_is_square_attacked(cp, BLACK, 5) == 0 &&
+            engine_is_square_attacked(cp, BLACK, 6) == 0)
           vector_push(v, &(Move){.move_type = CASTLE, .castle = CASTLE_KING});
     } else {
       // Check empty space and rook is in position
       if ((all_pieces & 0x6000000000000000) == 0 &&
           (cp->board[BLACK][ROOK] & 0x8000000000000000) != 0)
-        if (is_square_attacked(cp, WHITE, 60) == 0 &&
-            is_square_attacked(cp, WHITE, 61) == 0 &&
-            is_square_attacked(cp, WHITE, 62) == 0)
+        if (engine_is_square_attacked(cp, WHITE, 60) == 0 &&
+            engine_is_square_attacked(cp, WHITE, 61) == 0 &&
+            engine_is_square_attacked(cp, WHITE, 62) == 0)
           vector_push(v, &(Move){.move_type = CASTLE, .castle = CASTLE_KING});
     }
   }
@@ -534,17 +534,17 @@ static inline void gen_king_moves(ChessPosition *cp, VectorMove *v,
     if (cp->side_to_move == WHITE) {
       // Check empty space and rook is in position
       if ((all_pieces & 0xe) == 0 && (cp->board[WHITE][ROOK] & 0x1) != 0)
-        if (is_square_attacked(cp, BLACK, 2) == 0 &&
-            is_square_attacked(cp, BLACK, 3) == 0 &&
-            is_square_attacked(cp, BLACK, 4) == 0)
+        if (engine_is_square_attacked(cp, BLACK, 2) == 0 &&
+            engine_is_square_attacked(cp, BLACK, 3) == 0 &&
+            engine_is_square_attacked(cp, BLACK, 4) == 0)
           vector_push(v, &(Move){.move_type = CASTLE, .castle = CASTLE_QUEEN});
     } else {
       // Check empty space and rook is in position
       if ((all_pieces & 0xe00000000000000) == 0 &&
           (cp->board[BLACK][ROOK] & 0x100000000000000) != 0)
-        if (is_square_attacked(cp, WHITE, 58) == 0 &&
-            is_square_attacked(cp, WHITE, 59) == 0 &&
-            is_square_attacked(cp, WHITE, 60) == 0)
+        if (engine_is_square_attacked(cp, WHITE, 58) == 0 &&
+            engine_is_square_attacked(cp, WHITE, 59) == 0 &&
+            engine_is_square_attacked(cp, WHITE, 60) == 0)
           vector_push(v, &(Move){.move_type = CASTLE, .castle = CASTLE_QUEEN});
     }
   }
@@ -666,26 +666,26 @@ static inline void gen_pseudo_legal_moves(ChessPosition *cp, VectorMove *v) {
   gen_queen_moves(cp, v, ally_pieces, enemy_pieces);
 }
 
-void gen_legal_moves(ChessPosition *cp, VectorMove *v) {
+void engine_gen_legal_moves(ChessPosition *cp, VectorMove *v) {
   gen_pseudo_legal_moves(cp, v);
 
   VectorMove legal = vector_init(sizeof(Move), v->count);
 
   for (size_t i = 0; i < v->count; i++) {
-    UndoMove um = apply_move(cp, VALUE(Move, vector_get(v, i)));
-    if (!is_square_attacked(
+    UndoMove um = engine_apply_move(cp, VALUE(Move, vector_get(v, i)));
+    if (!engine_is_square_attacked(
             cp, cp->side_to_move,
             __builtin_ctzll(cp->board[ENEMY_COLOR(cp->side_to_move)][KING]))) {
       vector_push(&legal, vector_get(v, i));
     }
-    undo_move(cp, um);
+    engine_undo_move(cp, um);
   }
   vector_free(*v);
   *v = legal;
 }
-uint64_t perft(ChessPosition *cp, int max_depth, int depth) {
+uint64_t engine_perft(ChessPosition *cp, int max_depth, int depth) {
   Vector moves = vector_init(sizeof(Move), 256);
-  gen_legal_moves(cp, &moves);
+  engine_gen_legal_moves(cp, &moves);
 
   if (depth == max_depth - 1) {
     int nr = moves.count;
@@ -694,11 +694,11 @@ uint64_t perft(ChessPosition *cp, int max_depth, int depth) {
   }
   uint64_t total = 0;
   for (size_t i = 0; i < moves.count; i++) {
-    UndoMove um = apply_move(cp, VALUE(Move, vector_get(&moves, i)));
+    UndoMove um = engine_apply_move(cp, VALUE(Move, vector_get(&moves, i)));
     // print_position(cp);
-    total += perft(cp, max_depth, depth + 1);
+    total += engine_perft(cp, max_depth, depth + 1);
 
-    undo_move(cp, um);
+    engine_undo_move(cp, um);
   }
 
   vector_free(moves);

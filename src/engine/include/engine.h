@@ -19,11 +19,14 @@ typedef struct chess_position {
   uint32_t move_count : 13;
 } ChessPosition;
 
-ChessPosition init_position();
-ChessPosition init_position_from_fen(const char *fen);
+ChessPosition engine_init_position();
+ChessPosition engine_init_position_from_fen(const char *fen);
 
-UndoMove apply_move(ChessPosition *cp, Move m);
+UndoMove engine_apply_move(ChessPosition *cp, Move m);
 
-void gen_legal_moves(ChessPosition *cp, VectorMove *v);
-uint64_t perft(ChessPosition *cp, int max_depth, int depth);
-void undo_move(ChessPosition *cp, UndoMove u);
+void engine_gen_legal_moves(ChessPosition *cp, VectorMove *v);
+uint64_t engine_perft(ChessPosition *cp, int max_depth, int depth);
+void engine_undo_move(ChessPosition *cp, UndoMove u);
+
+unsigned char engine_is_square_attacked(ChessPosition *cp, Color by,
+                                        uint8_t position);

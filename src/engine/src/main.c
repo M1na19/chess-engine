@@ -12,7 +12,7 @@ int main() {
   load_bishop_bb();
   load_rook_bb();
 
-  ChessPosition cp = init_position();
+  ChessPosition cp = engine_init_position();
 
-  printf("%lld", perft(&cp, 6, 0));
+  printf("%lld", engine_perft(&cp, 6, 0));
 }
