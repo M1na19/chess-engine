@@ -1,9 +1,16 @@
+use std::time::Instant;
+
 use crate::engine::wrapper::{load_required_bitboards, ChessPosition};
 
 mod engine;
 mod minimax;
 fn main() {
     load_required_bitboards();
+    let mut cp = ChessPosition::new();
+    let time = Instant::now();
+    cp.perft(6);
+    let duration = time.elapsed();
+    dbg!(duration.as_millis());
 }
 #[cfg(test)]
 mod tests {

@@ -7,16 +7,16 @@ typedef struct chess_position {
   BitBoard board[NR_PIECE_COLORS][NR_PIECE_TYPES];
 
   struct {
-    Color color : 1;
-    PieceType piece : 3;
+    Color color;
+    PieceType piece;
   } piece_board[64];
 
   CastleRights castle_laws[NR_PIECE_COLORS];
-  Color side_to_move : 1;
+  Color side_to_move;
 
   EnPassant en_passant;
-  unsigned int half_move_count : 6;
-  uint32_t move_count : 13;
+  unsigned int half_move_count;
+  uint32_t move_count;
 } ChessPosition;
 
 ChessPosition engine_init_position();

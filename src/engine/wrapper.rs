@@ -43,13 +43,13 @@ impl ChessPosition {
         let res;
         unsafe {
             let chess_pos = &mut self.0;
-            dbg!(chess_pos.side_to_move());
-            let king_sq = chess_pos.board[chess_pos.side_to_move() as usize]
+            dbg!(chess_pos.side_to_move);
+            let king_sq = chess_pos.board[chess_pos.side_to_move as usize]
                 [c_engine::piece_type_KING as usize]
                 .trailing_zeros() as u8;
             res = c_engine::engine_is_square_attacked(
                 chess_pos as *mut c_engine::chess_position,
-                1 - chess_pos.side_to_move(),
+                1 - chess_pos.side_to_move,
                 king_sq,
             );
         }
@@ -113,15 +113,15 @@ impl Hash for ChessPosition {
         });
 
         // Hash side to move
-        self.0.side_to_move().hash(state);
+        self.0.side_to_move.hash(state);
 
         // Hash castle laws
         self.0.castle_laws[color_WHITE as usize].hash(state);
         self.0.castle_laws[color_BLACK as usize].hash(state);
 
         // Hash en_passant
-        self.0.en_passant.en_passant_status().hash(state);
-        self.0.en_passant.en_passant_square().hash(state);
+        self.0.en_passant.en_passant_status.hash(state);
+        self.0.en_passant.en_passant_square.hash(state);
     }
 }
 impl PartialEq for ChessPosition {
@@ -139,7 +139,7 @@ impl PartialEq for ChessPosition {
             });
 
         // Compare side to move
-        if self.0.side_to_move() != other.0.side_to_move() {
+        if self.0.side_to_move != other.0.side_to_move {
             return false;
         }
 
@@ -150,10 +150,10 @@ impl PartialEq for ChessPosition {
             return false;
         }
 
-        if self.0.en_passant.en_passant_status() != other.0.en_passant.en_passant_status() {
+        if self.0.en_passant.en_passant_status != other.0.en_passant.en_passant_status {
             return false;
         }
-        if self.0.en_passant.en_passant_square() != other.0.en_passant.en_passant_square() {
+        if self.0.en_passant.en_passant_square != other.0.en_passant.en_passant_square {
             return false;
         }
         true
@@ -161,25 +161,21 @@ impl PartialEq for ChessPosition {
 }
 impl Hash for Move {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.0.move_type().hash(state);
+        self.0.move_type.hash(state);
         unsafe {
-            match self.0.move_type() {
+            match self.0.move_type {
                 move__CASTLE => {
                     self.0.__bindgen_anon_1.castle.hash(state);
                 }
                 move__CAPTURE => {
-                    self.0.__bindgen_anon_1.capture.from().hash(state);
-                    self.0.__bindgen_anon_1.capture.to().hash(state);
-                    self.0.__bindgen_anon_1.capture.is_en_passant().hash(state);
+                    self.0.__bindgen_anon_1.capture.from.hash(state);
+                    self.0.__bindgen_anon_1.capture.to.hash(state);
+                    self.0.__bindgen_anon_1.capture.is_en_passant.hash(state);
                 }
                 move__PROMOTION => {
-                    self.0.__bindgen_anon_1.promotion.from().hash(state);
-                    self.0.__bindgen_anon_1.promotion.to().hash(state);
-                    self.0
-                        .__bindgen_anon_1
-                        .promotion
-                        .promotion_type()
-                        .hash(state);
+                    self.0.__bindgen_anon_1.promotion.from.hash(state);
+                    self.0.__bindgen_anon_1.promotion.to.hash(state);
+                    self.0.__bindgen_anon_1.promotion.promotion_type.hash(state);
                 }
                 _ => {
                     panic!("Unexpected move type")
@@ -190,11 +186,11 @@ impl Hash for Move {
 }
 impl PartialEq for Move {
     fn eq(&self, other: &Self) -> bool {
-        if self.0.move_type() != other.0.move_type() {
+        if self.0.move_type != other.0.move_type {
             return false;
         }
         unsafe {
-            match self.0.move_type() {
+            match self.0.move_type {
                 move__CASTLE => {
                     if self.0.__bindgen_anon_1.castle != other.0.__bindgen_anon_1.castle {
                         return false;
@@ -202,35 +198,31 @@ impl PartialEq for Move {
                     true
                 }
                 move__CAPTURE => {
-                    if self.0.__bindgen_anon_1.capture.from()
-                        != other.0.__bindgen_anon_1.capture.from()
+                    if self.0.__bindgen_anon_1.capture.from != other.0.__bindgen_anon_1.capture.from
                     {
                         return false;
                     }
-                    if self.0.__bindgen_anon_1.capture.to() != other.0.__bindgen_anon_1.capture.to()
-                    {
+                    if self.0.__bindgen_anon_1.capture.to != other.0.__bindgen_anon_1.capture.to {
                         return false;
                     }
-                    if self.0.__bindgen_anon_1.capture.is_en_passant()
-                        != other.0.__bindgen_anon_1.capture.is_en_passant()
+                    if self.0.__bindgen_anon_1.capture.is_en_passant
+                        != other.0.__bindgen_anon_1.capture.is_en_passant
                     {
                         return false;
                     }
                     true
                 }
                 move__PROMOTION => {
-                    if self.0.__bindgen_anon_1.promotion.from()
-                        != other.0.__bindgen_anon_1.capture.from()
+                    if self.0.__bindgen_anon_1.promotion.from
+                        != other.0.__bindgen_anon_1.capture.from
                     {
                         return false;
                     }
-                    if self.0.__bindgen_anon_1.promotion.to()
-                        != other.0.__bindgen_anon_1.capture.to()
-                    {
+                    if self.0.__bindgen_anon_1.promotion.to != other.0.__bindgen_anon_1.capture.to {
                         return false;
                     }
-                    if self.0.__bindgen_anon_1.promotion.promotion_type()
-                        != other.0.__bindgen_anon_1.promotion.promotion_type()
+                    if self.0.__bindgen_anon_1.promotion.promotion_type
+                        != other.0.__bindgen_anon_1.promotion.promotion_type
                     {
                         return false;
                     }

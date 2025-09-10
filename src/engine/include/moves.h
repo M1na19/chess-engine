@@ -27,9 +27,9 @@ typedef enum piece_type {
 } PieceType;
 
 typedef struct capture {
-  unsigned from : 6;
-  unsigned to : 6;
-  unsigned is_en_passant : 1;
+  unsigned from;
+  unsigned to;
+  unsigned is_en_passant;
 } Capture;
 
 typedef enum promotion_type {
@@ -40,9 +40,9 @@ typedef enum promotion_type {
 } PromotionType;
 
 typedef struct promotion {
-  unsigned from : 6;
-  unsigned to : 6;
-  PromotionType promotion_type : 3;
+  unsigned from;
+  unsigned to;
+  PromotionType promotion_type;
 } Promotion;
 
 typedef enum castle_rights {
@@ -54,11 +54,11 @@ typedef enum castle_rights {
 
 typedef enum castle { CASTLE_KING, CASTLE_QUEEN } Castle;
 typedef struct en_passant {
-  enum { EN_PASSANT_POSSIBLE, EN_PASSANT_NOT_POSSIBLE } en_passant_status : 1;
-  uint8_t en_passant_square : 6;
+  enum { EN_PASSANT_POSSIBLE, EN_PASSANT_NOT_POSSIBLE } en_passant_status;
+  uint8_t en_passant_square;
 } EnPassant;
 typedef struct move {
-  enum { CASTLE, PROMOTION, CAPTURE } move_type : 2;
+  enum { CASTLE, PROMOTION, CAPTURE } move_type;
 
   union {
     Castle castle;
@@ -70,18 +70,18 @@ typedef Vector VectorMove;
 
 typedef struct _undo_move {
   struct undo_piece {
-    uint8_t on_table : 1;
+    uint8_t on_table;
     union {
-      uint8_t sq : 6;
-      PieceType piece : 3;
+      uint8_t sq;
+      PieceType piece;
     } from;
-    uint8_t is_promotion : 1;
-    uint8_t to : 6;
+    uint8_t is_promotion;
+    uint8_t to;
 
   } changes[2];
-  uint8_t nr_changes : 1;
+  uint8_t nr_changes;
 
   EnPassant prev_en_passant;
-  uint8_t prev_half_move : 6;
+  uint8_t prev_half_move;
   CastleRights castle_laws[NR_PIECE_COLORS];
 } UndoMove;
